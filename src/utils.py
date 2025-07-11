@@ -241,3 +241,73 @@ def evaluate(device, model, X_attack, plt_attack,correct_key,leakage_fn, nb_atta
     print("GE", GE)
     print("NTGE", NTGE)
     return GE,NTGE
+def normalize_trace(traces):
+    """
+    Performs Z-score normalization on each trace individually.
+    Z-score = (x - mean) / std
+    
+    Args:
+    traces (np.array): A 2D numpy array of shape (num_traces, num_points).
+    
+    Returns:
+    np.array: The normalized traces.
+    """
+    # Calculate mean and standard deviation along the time axis (axis=1)
+    # keepdims=True ensures the output shape is (num_traces, 1) for broadcasting
+    mean = np.mean(traces, axis=1, keepdims=True)
+    std = np.std(traces, axis=1, keepdims=True)
+    
+    #  avoid divison by zero for traces with no variation
+    # if std is 0, we can't divide. We'll replace it with 1 to avoid errors.
+    # the result of (trace - mean) will be 0 any way so 0/1 = 0
+    
+    std_no_zero = np.where(std == 0, 1, std)
+    print(f"Normalizing {len(traces)} traces...")
+    return(traces - mean)/ std_no_zero
+
+# alignemnt function 
+def align_traces(traces, reference_trace, max_shift):
+    """
+    Aligns a set of traces to a reference trace using cross-correlation.
+    This version uses a more robust slicing method to avoid errors.
+
+    Args:
+    traces (np.array): The 2D array of traces to align (num_traces, num_points).
+    reference_trace (np.array): The 1D reference trace to align against.
+    max_shift (int): The maximum number of points to shift left or right.
+
+    Returns:
+    np.array: The aligned traces.
+    """
+    print(f"Aligning {len(traces)} traces with max_shift={max_shift}...")
+    
+    num_traces, num_points = traces.shape
+    aligned_traces = np.zeros_like(traces, dtype=np.float32)
+    
+    # Define the window from the reference trace. Let's make it a clear, central part.
+    # For example, a window of 200 points around the center of the reference.
+    ref_center = len(reference_trace) // 2
+    ref_window_size = 200 # This is another hyperparameter you can tune
+    ref_window = reference_trace[ref_center - ref_window_size//2 : ref_center + ref_window_size//2]
+
+    for i in tqdm(range(num_traces), desc="Aligning Traces"):
+        trace = traces[i]
+        
+        # We search for the reference window within a larger search area of the trace
+        search_area_start = ref_center - ref_window_size//2 - max_shift
+        search_area_end = ref_center + ref_window_size//2 + max_shift
+        search_area = trace[search_area_start:search_area_end]
+
+        # `np.correlate` finds the similarity at all possible lags
+        cross_corr = np.correlate(search_area, ref_window, mode='valid')
+        
+        # The best offset is the index with the maximum correlation value
+        # We subtract max_shift to map it back to our original offset range [-50, 50]
+        relative_offset = np.argmax(cross_corr)
+        best_offset = relative_offset - max_shift
+
+        # Apply the best shift to the original trace
+        # A positive offset means the trace was shifted right, so we roll it left
+        aligned_traces[i] = np.roll(trace, -best_offset)
+        
+    return aligned_traces

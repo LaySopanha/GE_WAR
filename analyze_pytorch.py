@@ -8,7 +8,7 @@ from torchvision.transforms import transforms
 from src.dataloader import ToTensor_trace, Custom_Dataset
 from src.net import create_hyperparameter_space, MLP, CNN
 from src.trainer import trainer
-from src.utils import evaluate, AES_Sbox, calculate_HW
+from src.utils import evaluate, AES_Sbox, calculate_HW, normalize_trace
 
 if __name__=="__main__":
     dataset = "CHES_2025"
@@ -58,10 +58,15 @@ if __name__=="__main__":
     num_sample_pts = X_attack.shape[-1]
     #########################################################################
 
+    num_sample_pts = X_attack.shape[-1]
+    
+    # --- PREPROCESSING FOR SUBMISSION ---
+    X_attack = normalize_trace(X_attack)
+    # --- END PREPROCESSING ---
 
     ##TODO: Load your model (note, you have to create your model in this file and new function should be in this file.) ########################
     ############## Below is an example ############################################
-    model_type = "mlp"
+    model_type = "cnn"
     root = "./Result/"
     save_root = root + dataset + "_" + model_type + "_" + leakage + "/"
     model_root = save_root + "models/"
