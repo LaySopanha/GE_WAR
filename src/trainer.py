@@ -8,7 +8,11 @@ import wandb
 import time
 
 def training_loop(config, model, train_loader, val_loader, device):
-    optimizer = optim.AdamW(model.parameters(), lr=config['lr'])
+    if config['optimizer'] == "Adam":
+        optimizer = optim.AdamW(model.parameters(), lr=config['lr'])
+    else: # RMSprop
+        optimizer = optim.RMSprop(model.parameters(), lr=config['lr'])
+        
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=5)
     criterion = nn.CrossEntropyLoss()
 
@@ -16,9 +20,6 @@ def training_loop(config, model, train_loader, val_loader, device):
     best_val_loss = float('inf')
     
     for epoch in range(config['epochs']):
-        print(f'Epoch {epoch + 1}/{config["epochs"]}')
-        print('-' * 10)
-
         # --- Training Phase ---
         model.train()
         train_loss = 0.0
@@ -35,16 +36,10 @@ def training_loop(config, model, train_loader, val_loader, device):
             loss.backward()
 
             if (i + 1) % 100 == 0:
-                total_norm = 0
-                for p in model.parameters():
-                    if p.grad is not None:
-                        param_norm = p.grad.data.norm(2)
-                        total_norm += param_norm.item() ** 2
-                total_norm = total_norm ** 0.5
+                total_norm = sum(p.grad.data.norm(2).item() ** 2 for p in model.parameters() if p.grad is not None) ** 0.5
                 wandb.log({"gradient_norm": total_norm})
 
             optimizer.step()
-            
             train_loss += loss.item() * inputs.size(0)
             train_corrects += torch.sum(preds == labels.data)
             
@@ -64,20 +59,14 @@ def training_loop(config, model, train_loader, val_loader, device):
         # --- Epoch Logging ---
         avg_train_loss = train_loss / len(train_loader.dataset)
         avg_train_acc = train_corrects.double() / len(train_loader.dataset)
-        
         avg_val_loss = val_loss / len(val_loader.dataset)
         avg_val_acc = val_corrects.double() / len(val_loader.dataset)
         
-        print(f"Train Loss: {avg_train_loss:.4f} Acc: {avg_train_acc:.4f} | Val Loss: {avg_val_loss:.4f} Acc: {avg_val_acc:.4f}")
+        print(f"Epoch {epoch+1}: Train Loss: {avg_train_loss:.4f} Acc: {avg_train_acc:.4f} | Val Loss: {avg_val_loss:.4f} Acc: {avg_val_acc:.4f}")
         
-        # ++ Log ALL metrics to wandb dashboard ++
         wandb.log({
-            "epoch": epoch + 1,
-            "train_loss": avg_train_loss,
-            "train_accuracy": avg_train_acc,
-            "val_loss": avg_val_loss,
-            "val_accuracy": avg_val_acc,
-            "learning_rate": optimizer.param_groups[0]['lr']
+            "epoch": epoch + 1, "train_loss": avg_train_loss, "train_accuracy": avg_train_acc,
+            "val_loss": avg_val_loss, "val_accuracy": avg_val_acc, "learning_rate": optimizer.param_groups[0]['lr']
         })
         
         scheduler.step(avg_val_loss)

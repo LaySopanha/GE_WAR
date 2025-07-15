@@ -1,0 +1,63 @@
+Loading traces from slice [4119:4519]...
+The dataset we are using:  Dataset/CHES_2025/CHES_Challenge.h5
+--- Starting W&B Run: Phase2_Test_Candidate_A ---
+                                                                                                                                                            
+Epoch 1: Train Loss: 5.5527 Acc: 0.0042 | Val Loss: 5.5578 Acc: 0.0043
+Epoch 2: Train Loss: 5.5366 Acc: 0.0044 | Val Loss: 5.5575 Acc: 0.0045
+Epoch 3: Train Loss: 5.5329 Acc: 0.0046 | Val Loss: 5.5579 Acc: 0.0037
+Epoch 4: Train Loss: 5.5319 Acc: 0.0046 | Val Loss: 5.5574 Acc: 0.0046
+Epoch 5: Train Loss: 5.5311 Acc: 0.0045 | Val Loss: 5.5605 Acc: 0.0049
+Epoch 6: Train Loss: 5.5309 Acc: 0.0046 | Val Loss: 5.5615 Acc: 0.0039
+Epoch 7: Train Loss: 5.5301 Acc: 0.0046 | Val Loss: 5.5604 Acc: 0.0048
+Epoch 8: Train Loss: 5.5268 Acc: 0.0051 | Val Loss: 5.5613 Acc: 0.0037
+Epoch 9: Train Loss: 5.5256 Acc: 0.0051 | Val Loss: 5.5622 Acc: 0.0036
+Epoch 10: Train Loss: 5.5247 Acc: 0.0052 | Val Loss: 5.5643 Acc: 0.0038
+Epoch 11: Train Loss: 5.5238 Acc: 0.0054 | Val Loss: 5.5647 Acc: 0.0042
+Epoch 12: Train Loss: 5.5233 Acc: 0.0055 | Val Loss: 5.5621 Acc: 0.0035
+Epoch 13: Train Loss: 5.5225 Acc: 0.0053 | Val Loss: 5.5621 Acc: 0.0046
+Epoch 14: Train Loss: 5.5192 Acc: 0.0058 | Val Loss: 5.5729 Acc: 0.0045
+Epoch 15: Train Loss: 5.5182 Acc: 0.0058 | Val Loss: 5.5690 Acc: 0.0038
+Epoch 16: Train Loss: 5.5179 Acc: 0.0059 | Val Loss: 5.5691 Acc: 0.0049
+Epoch 17: Train Loss: 5.5171 Acc: 0.0059 | Val Loss: 5.5708 Acc: 0.0045
+Epoch 18: Train Loss: 5.5168 Acc: 0.0058 | Val Loss: 5.5732 Acc: 0.0043
+Epoch 19: Train Loss: 5.5162 Acc: 0.0060 | Val Loss: 5.5715 Acc: 0.0044
+Epoch 20: Train Loss: 5.5137 Acc: 0.0060 | Val Loss: 5.5715 Acc: 0.0047
+Epoch 21: Train Loss: 5.5131 Acc: 0.0061 | Val Loss: 5.5749 Acc: 0.0038
+Epoch 22: Train Loss: 5.5126 Acc: 0.0063 | Val Loss: 5.5748 Acc: 0.0050
+Epoch 23: Train Loss: 5.5126 Acc: 0.0063 | Val Loss: 5.5757 Acc: 0.0040
+Epoch 24: Train Loss: 5.5121 Acc: 0.0063 | Val Loss: 5.5749 Acc: 0.0044
+Epoch 25: Train Loss: 5.5120 Acc: 0.0063 | Val Loss: 5.5753 Acc: 0.0043
+Epoch 26: Train Loss: 5.5101 Acc: 0.0064 | Val Loss: 5.5773 Acc: 0.0041
+Epoch 27: Train Loss: 5.5096 Acc: 0.0065 | Val Loss: 5.5789 Acc: 0.0040
+Epoch 28: Train Loss: 5.5095 Acc: 0.0065 | Val Loss: 5.5792 Acc: 0.0044
+Epoch 29: Train Loss: 5.5094 Acc: 0.0066 | Val Loss: 5.5776 Acc: 0.0040
+Epoch 30: Train Loss: 5.5091 Acc: 0.0066 | Val Loss: 5.5806 Acc: 0.0043
+Epoch 31: Train Loss: 5.5091 Acc: 0.0066 | Val Loss: 5.5788 Acc: 0.0042
+Epoch 32: Train Loss: 5.5079 Acc: 0.0068 | Val Loss: 5.5792 Acc: 0.0039
+Epoch 33: Train Loss: 5.5078 Acc: 0.0066 | Val Loss: 5.5786 Acc: 0.0041
+Epoch 34: Train Loss: 5.5077 Acc: 0.0066 | Val Loss: 5.5805 Acc: 0.0044
+Epoch 35: Train Loss: 5.5075 Acc: 0.0066 | Val Loss: 5.5806 Acc: 0.0042
+Epoch 36: Train Loss: 5.5075 Acc: 0.0068 | Val Loss: 5.5781 Acc: 0.0041
+Epoch 37: Train Loss: 5.5075 Acc: 0.0068 | Val Loss: 5.5809 Acc: 0.0042
+Epoch 38: Train Loss: 5.5069 Acc: 0.0068 | Val Loss: 5.5793 Acc: 0.0040
+Epoch 39: Train Loss: 5.5066 Acc: 0.0067 | Val Loss: 5.5793 Acc: 0.0038
+Epoch 40: Train Loss: 5.5065 Acc: 0.0069 | Val Loss: 5.5813 Acc: 0.0037
+Epoch 41: Train Loss: 5.5068 Acc: 0.0069 | Val Loss: 5.5802 Acc: 0.0038
+Epoch 42: Train Loss: 5.5064 Acc: 0.0068 | Val Loss: 5.5811 Acc: 0.0039
+Epoch 43: Train Loss: 5.5065 Acc: 0.0068 | Val Loss: 5.5812 Acc: 0.0037
+Epoch 44: Train Loss: 5.5066 Acc: 0.0069 | Val Loss: 5.5814 Acc: 0.0037
+Epoch 45: Train Loss: 5.5063 Acc: 0.0067 | Val Loss: 5.5809 Acc: 0.0039
+Epoch 46: Train Loss: 5.5060 Acc: 0.0067 | Val Loss: 5.5792 Acc: 0.0038
+Epoch 47: Train Loss: 5.5061 Acc: 0.0067 | Val Loss: 5.5811 Acc: 0.0038
+Epoch 48: Train Loss: 5.5059 Acc: 0.0068 | Val Loss: 5.5814 Acc: 0.0038
+Epoch 49: Train Loss: 5.5058 Acc: 0.0069 | Val Loss: 5.5812 Acc: 0.0039
+Epoch 50: Train Loss: 5.5057 Acc: 0.0069 | Val Loss: 5.5806 Acc: 0.0038
+
+--- Starting Post-Training Evaluation on Validation Set ---
+
+--- Evaluation Results ---
+Final GE after 10000 traces: 65.0
+NTGE (first trace count where GE=0 stabilizes): inf
+--------------------------
+
+--- Finished W&B Run: Phase2_Test_Candidate_A ---

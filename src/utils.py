@@ -26,7 +26,24 @@ AES_Sbox = np.array([
     0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94, 0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF,
     0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16
 ])
-# Other arrays like AES_Sbox_inv are omitted for brevity but should be kept if they exist in your original file
+AES_Sbox_inv = np.array([
+    0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
+    0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
+    0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e,
+    0x08, 0x2e, 0xa1, 0x66, 0x28, 0xd9, 0x24, 0xb2, 0x76, 0x5b, 0xa2, 0x49, 0x6d, 0x8b, 0xd1, 0x25,
+    0x72, 0xf8, 0xf6, 0x64, 0x86, 0x68, 0x98, 0x16, 0xd4, 0xa4, 0x5c, 0xcc, 0x5d, 0x65, 0xb6, 0x92,
+    0x6c, 0x70, 0x48, 0x50, 0xfd, 0xed, 0xb9, 0xda, 0x5e, 0x15, 0x46, 0x57, 0xa7, 0x8d, 0x9d, 0x84,
+    0x90, 0xd8, 0xab, 0x00, 0x8c, 0xbc, 0xd3, 0x0a, 0xf7, 0xe4, 0x58, 0x05, 0xb8, 0xb3, 0x45, 0x06,
+    0xd0, 0x2c, 0x1e, 0x8f, 0xca, 0x3f, 0x0f, 0x02, 0xc1, 0xaf, 0xbd, 0x03, 0x01, 0x13, 0x8a, 0x6b,
+    0x3a, 0x91, 0x11, 0x41, 0x4f, 0x67, 0xdc, 0xea, 0x97, 0xf2, 0xcf, 0xce, 0xf0, 0xb4, 0xe6, 0x73,
+    0x96, 0xac, 0x74, 0x22, 0xe7, 0xad, 0x35, 0x85, 0xe2, 0xf9, 0x37, 0xe8, 0x1c, 0x75, 0xdf, 0x6e,
+    0x47, 0xf1, 0x1a, 0x71, 0x1d, 0x29, 0xc5, 0x89, 0x6f, 0xb7, 0x62, 0x0e, 0xaa, 0x18, 0xbe, 0x1b,
+    0xfc, 0x56, 0x3e, 0x4b, 0xc6, 0xd2, 0x79, 0x20, 0x9a, 0xdb, 0xc0, 0xfe, 0x78, 0xcd, 0x5a, 0xf4,
+    0x1f, 0xdd, 0xa8, 0x33, 0x88, 0x07, 0xc7, 0x31, 0xb1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xec, 0x5f,
+    0x60, 0x51, 0x7f, 0xa9, 0x19, 0xb5, 0x4a, 0x0d, 0x2d, 0xe5, 0x7a, 0x9f, 0x93, 0xc9, 0x9c, 0xef,
+    0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61,
+    0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d
+])
 
 def HW(s):
     return bin(s).count("1")
@@ -40,62 +57,55 @@ def load_ctf_2025(filename, leakage_model='HW', byte = 0, train_begin = 0, train
     in_file = h5py.File(filename, "r")
     
     print(f"Loading traces from slice [{poi_start}:{poi_end}]...")
-    X_profiling = np.array(in_file['Profiling_traces/traces'][:, poi_start:poi_end])
-    X_profiling = X_profiling.reshape((X_profiling.shape[0], X_profiling.shape[1]))
-
-    P_profiling = np.array(in_file['Profiling_traces/metadata'][:]['plaintext'][:, byte])
-    if byte != 0:
-        key_profiling = np.array(in_file['Profiling_traces/metadata'][:]['key'][:,byte])
-        Y_profiling = np.zeros(P_profiling.shape[0])
-        for i in range(len(P_profiling)):
-            Y_profiling[i] = AES_Sbox[P_profiling[i] ^ key_profiling[i]]
-        if leakage_model == 'HW': Y_profiling = calculate_HW(Y_profiling)
-    else:
-        Y_profiling = np.array(in_file['Profiling_traces/metadata'][:]['labels'])
-        if leakage_model == 'HW': Y_profiling = calculate_HW(Y_profiling)
-
-    X_attack = np.array(in_file['Attack_traces/traces'][:, poi_start:poi_end])
-    X_attack = X_attack.reshape((X_attack.shape[0], X_attack.shape[1]))
-    P_attack = np.array(in_file['Attack_traces/metadata'][:]['plaintext'][:, byte])
-    attack_key = np.array(in_file['Attack_traces/metadata'][:]['key'][0, byte])
+    X_profiling = np.array(in_file['Profiling_traces/traces'][train_begin:train_end, poi_start:poi_end])
+    P_profiling = np.array(in_file['Profiling_traces/metadata'][train_begin:train_end]['plaintext'][:, byte])
     
     if byte != 0:
-        key_attack = np.array(in_file['Attack_traces/metadata'][:]['key'][:,byte])
-        Y_attack = np.zeros(P_attack.shape[0])
-        for i in range(len(P_attack)):
-            Y_attack[i] = AES_Sbox[P_attack[i] ^ key_attack[i]]
-        if leakage_model == 'HW': Y_attack = calculate_HW(Y_attack)
+        key_profiling = np.array(in_file['Profiling_traces/metadata'][train_begin:train_end]['key'][:,byte])
+        Y_profiling = np.array([AES_Sbox[p ^ k] for p, k in zip(P_profiling, key_profiling)])
     else:
-        Y_attack = np.array(in_file['Attack_traces/metadata'][:]['labels'])
-        if leakage_model == 'HW': Y_attack = calculate_HW(Y_attack)
+        Y_profiling = np.array(in_file['Profiling_traces/metadata'][train_begin:train_end]['labels'])
+        
+    if leakage_model == 'HW': Y_profiling = calculate_HW(Y_profiling)
 
-    return (X_profiling[train_begin:train_end], X_attack[test_begin:test_end]), (Y_profiling[train_begin:train_end],  Y_attack[test_begin:test_end]),\
-           (P_profiling[train_begin:train_end],  P_attack[test_begin:test_end]), attack_key
+    X_attack = np.array(in_file['Attack_traces/traces'][test_begin:test_end, poi_start:poi_end])
+    P_attack = np.array(in_file['Attack_traces/metadata'][test_begin:test_end]['plaintext'][:, byte])
+    attack_key = np.array(in_file['Attack_traces/metadata'][test_begin:test_end]['key'][0, byte])
+    
+    if byte != 0:
+        key_attack = np.array(in_file['Attack_traces/metadata'][test_begin:test_end]['key'][:,byte])
+        Y_attack = np.array([AES_Sbox[p ^ k] for p, k in zip(P_attack, key_attack)])
+    else:
+        Y_attack = np.array(in_file['Attack_traces/metadata'][test_begin:test_end]['labels'])
+        
+    if leakage_model == 'HW': Y_attack = calculate_HW(Y_attack)
+
+    return (X_profiling, X_attack), (Y_profiling, Y_attack), (P_profiling, P_attack), attack_key
 
 def rk_key(rank_array, key):
     try:
         key_val = rank_array[key]
-        final_rank = np.where(np.sort(rank_array)[::-1] == key_val)[0][0]
+        sorted_ranks = np.sort(rank_array)[::-1]
+        final_rank = np.where(sorted_ranks == key_val)[0][0]
     except (ValueError, IndexError):
-        final_rank = 256
-    
-    return float(final_rank) if not (math.isnan(float(final_rank)) or math.isinf(float(final_rank))) else 256.0
+        final_rank = 255.0
+    return float(final_rank)
 
 def rank_compute(prediction, att_plt, correct_key,leakage_fn):
     (nb_traces, _) = prediction.shape
     key_log_prob = np.zeros(256)
     prediction = np.log(prediction + 1e-40)
-    rank_evol = np.full(nb_traces, 255, dtype=np.float32)
+    rank_evol = np.full(nb_traces, 255.0)
     for i in range(nb_traces):
         for k in range(256):
             y_value = leakage_fn(att_plt[i], k)
-            key_log_prob[k] += prediction[i,  y_value]
-        rank_evol[i] =  rk_key(key_log_prob, correct_key)
+            key_log_prob[k] += prediction[i, y_value]
+        rank_evol[i] = rk_key(key_log_prob, correct_key)
     return rank_evol, key_log_prob
 
 def perform_attacks(nb_traces, predictions, plt_attack,correct_key,leakage_fn,nb_attacks=1, shuffle=True):
     all_rk_evol = np.zeros((nb_attacks, nb_traces))
-    for i in tqdm(range(nb_attacks), desc="Attack Progress"):
+    for i in range(nb_attacks):
         indices = np.arange(len(predictions))
         if shuffle: np.random.shuffle(indices)
         shuffled_predictions = predictions[indices]
@@ -104,34 +114,21 @@ def perform_attacks(nb_traces, predictions, plt_attack,correct_key,leakage_fn,nb
         all_rk_evol[i] = rank_evol
     return np.mean(all_rk_evol, axis=0), None
 
-# In src/utils.py
-
 def NTGE_fn(GE):
-    # Find the last index where the rank is not 0
-    # If all ranks are 0, non_zero_indices will be empty
     non_zero_indices = np.where(GE > 0)[0]
-    
-    if len(non_zero_indices) == 0:
-        # If the GE is 0 from the very first trace
-        return 1
-    else:
-        # The first trace where GE is stably 0 is one after the last non-zero rank
-        last_non_zero_idx = non_zero_indices[-1]
-        if last_non_zero_idx + 1 >= len(GE):
-            # This means the GE never stayed at 0 until the end
-            return float('inf')
-        else:
-            return last_non_zero_idx + 2 # +1 for index, +1 for next trace
+    if len(non_zero_indices) == 0: return 1
+    last_non_zero_idx = non_zero_indices[-1]
+    return float('inf') if last_non_zero_idx + 1 >= len(GE) else last_non_zero_idx + 2
 
 def evaluate(device, model, X_attack, plt_attack,correct_key,leakage_fn, nb_attacks=100, total_nb_traces_attacks=2000, nb_traces_attacks = 1700):
     model.eval()
     with torch.no_grad():
-        attack_traces_tensor = torch.from_numpy(X_attack[:total_nb_traces_attacks]).to(device).unsqueeze(1).float()
+        attack_traces_tensor = torch.from_numpy(X_attack[:total_nb_traces_attacks]).to(device).float()
         predictions = F.softmax(model(attack_traces_tensor), dim=1).cpu().numpy()
     GE, _ = perform_attacks(nb_traces_attacks, predictions, plt_attack, correct_key, nb_attacks=nb_attacks, shuffle=True, leakage_fn=leakage_fn)
     NTGE = NTGE_fn(GE)
     print("\n--- Evaluation Results ---")
     print(f"Final GE after {nb_traces_attacks} traces: {GE[-1] if len(GE) > 0 else 'N/A'}")
-    print(f"NTGE (first trace count where GE=0): {NTGE}")
+    print(f"NTGE (first trace count where GE=0 stabilizes): {NTGE}")
     print("--------------------------\n")
     return GE, NTGE

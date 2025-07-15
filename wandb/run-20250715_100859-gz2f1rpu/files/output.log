@@ -1,0 +1,79 @@
+Loading traces from slice [4119:4519]...
+The dataset we are using:  Dataset/CHES_2025/CHES_Challenge.h5
+--- Starting W&B Run: Phase2_Test_Candidate_A ---
+                                                                                                                                                            
+Epoch 1: Train Loss: 5.5527 Acc: 0.0043 | Val Loss: 5.5578 Acc: 0.0036
+Epoch 2: Train Loss: 5.5366 Acc: 0.0044 | Val Loss: 5.5574 Acc: 0.0047
+Epoch 3: Train Loss: 5.5330 Acc: 0.0046 | Val Loss: 5.5578 Acc: 0.0040
+Epoch 4: Train Loss: 5.5319 Acc: 0.0044 | Val Loss: 5.5575 Acc: 0.0041
+Epoch 5: Train Loss: 5.5312 Acc: 0.0044 | Val Loss: 5.5610 Acc: 0.0038
+Epoch 6: Train Loss: 5.5309 Acc: 0.0046 | Val Loss: 5.5622 Acc: 0.0033
+Epoch 7: Train Loss: 5.5302 Acc: 0.0046 | Val Loss: 5.5610 Acc: 0.0037
+Epoch 8: Train Loss: 5.5269 Acc: 0.0051 | Val Loss: 5.5623 Acc: 0.0033
+Epoch 9: Train Loss: 5.5257 Acc: 0.0051 | Val Loss: 5.5620 Acc: 0.0043
+Epoch 10: Train Loss: 5.5248 Acc: 0.0051 | Val Loss: 5.5646 Acc: 0.0042
+Epoch 11: Train Loss: 5.5239 Acc: 0.0054 | Val Loss: 5.5647 Acc: 0.0041
+Epoch 12: Train Loss: 5.5233 Acc: 0.0053 | Val Loss: 5.5626 Acc: 0.0049
+Epoch 13: Train Loss: 5.5226 Acc: 0.0055 | Val Loss: 5.5621 Acc: 0.0035
+Epoch 14: Train Loss: 5.5194 Acc: 0.0058 | Val Loss: 5.5725 Acc: 0.0042
+Epoch 15: Train Loss: 5.5183 Acc: 0.0058 | Val Loss: 5.5686 Acc: 0.0045
+Epoch 16: Train Loss: 5.5179 Acc: 0.0058 | Val Loss: 5.5693 Acc: 0.0044
+Epoch 17: Train Loss: 5.5172 Acc: 0.0060 | Val Loss: 5.5715 Acc: 0.0047
+Epoch 18: Train Loss: 5.5170 Acc: 0.0059 | Val Loss: 5.5728 Acc: 0.0047
+Epoch 19: Train Loss: 5.5164 Acc: 0.0058 | Val Loss: 5.5716 Acc: 0.0054
+Epoch 20: Train Loss: 5.5139 Acc: 0.0061 | Val Loss: 5.5713 Acc: 0.0046
+Epoch 21: Train Loss: 5.5131 Acc: 0.0062 | Val Loss: 5.5749 Acc: 0.0041
+Epoch 22: Train Loss: 5.5127 Acc: 0.0062 | Val Loss: 5.5746 Acc: 0.0049
+Epoch 23: Train Loss: 5.5127 Acc: 0.0062 | Val Loss: 5.5757 Acc: 0.0040
+Epoch 24: Train Loss: 5.5121 Acc: 0.0063 | Val Loss: 5.5749 Acc: 0.0047
+Epoch 25: Train Loss: 5.5121 Acc: 0.0063 | Val Loss: 5.5756 Acc: 0.0041
+Epoch 26: Train Loss: 5.5102 Acc: 0.0066 | Val Loss: 5.5771 Acc: 0.0038
+Epoch 27: Train Loss: 5.5098 Acc: 0.0064 | Val Loss: 5.5790 Acc: 0.0035
+Epoch 28: Train Loss: 5.5096 Acc: 0.0066 | Val Loss: 5.5794 Acc: 0.0038
+Epoch 29: Train Loss: 5.5094 Acc: 0.0066 | Val Loss: 5.5776 Acc: 0.0039
+Epoch 30: Train Loss: 5.5092 Acc: 0.0067 | Val Loss: 5.5809 Acc: 0.0042
+Epoch 31: Train Loss: 5.5091 Acc: 0.0065 | Val Loss: 5.5785 Acc: 0.0046
+Epoch 32: Train Loss: 5.5080 Acc: 0.0067 | Val Loss: 5.5791 Acc: 0.0039
+Epoch 33: Train Loss: 5.5079 Acc: 0.0066 | Val Loss: 5.5784 Acc: 0.0039
+Epoch 34: Train Loss: 5.5078 Acc: 0.0066 | Val Loss: 5.5804 Acc: 0.0042
+Epoch 35: Train Loss: 5.5076 Acc: 0.0066 | Val Loss: 5.5807 Acc: 0.0037
+Epoch 36: Train Loss: 5.5076 Acc: 0.0066 | Val Loss: 5.5780 Acc: 0.0041
+Epoch 37: Train Loss: 5.5077 Acc: 0.0067 | Val Loss: 5.5807 Acc: 0.0038
+Epoch 38: Train Loss: 5.5071 Acc: 0.0067 | Val Loss: 5.5793 Acc: 0.0037
+Epoch 39: Train Loss: 5.5068 Acc: 0.0068 | Val Loss: 5.5792 Acc: 0.0037
+Epoch 40: Train Loss: 5.5067 Acc: 0.0067 | Val Loss: 5.5809 Acc: 0.0044
+Epoch 41: Train Loss: 5.5069 Acc: 0.0066 | Val Loss: 5.5803 Acc: 0.0041
+Epoch 42: Train Loss: 5.5068 Acc: 0.0067 | Val Loss: 5.5811 Acc: 0.0037
+Epoch 43: Train Loss: 5.5067 Acc: 0.0068 | Val Loss: 5.5811 Acc: 0.0040
+Epoch 44: Train Loss: 5.5067 Acc: 0.0068 | Val Loss: 5.5813 Acc: 0.0040
+Epoch 45: Train Loss: 5.5064 Acc: 0.0067 | Val Loss: 5.5807 Acc: 0.0039
+Epoch 46: Train Loss: 5.5063 Acc: 0.0069 | Val Loss: 5.5791 Acc: 0.0037
+Epoch 47: Train Loss: 5.5062 Acc: 0.0068 | Val Loss: 5.5808 Acc: 0.0041
+Epoch 48: Train Loss: 5.5062 Acc: 0.0068 | Val Loss: 5.5814 Acc: 0.0040
+Epoch 49: Train Loss: 5.5061 Acc: 0.0068 | Val Loss: 5.5812 Acc: 0.0043
+Epoch 50: Train Loss: 5.5060 Acc: 0.0069 | Val Loss: 5.5803 Acc: 0.0039
+
+--- Starting Post-Training Evaluation on Validation Set ---
+  File "/teamspace/studios/this_studio/ches2025_pytorch/main_pytorch.py", line 100, in <module>
+    run_experiment(experiment_config)
+  File "/teamspace/studios/this_studio/ches2025_pytorch/main_pytorch.py", line 71, in run_experiment
+    GE, NTGE = evaluate(device, model, X_attack_val, plt_attack_val, correct_key,
+  File "/teamspace/studios/this_studio/ches2025_pytorch/src/utils.py", line 127, in evaluate
+    predictions = F.softmax(model(attack_traces_tensor), dim=1).cpu().numpy()
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1857, in _call_impl
+    return inner()
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1805, in inner
+    result = forward_call(*args, **kwargs)
+  File "/teamspace/studios/this_studio/ches2025_pytorch/src/net.py", line 147, in forward
+    x = layer(x)
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 375, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 370, in _conv_forward
+    return F.conv1d(
+RuntimeError: Expected 2D (unbatched) or 3D (batched) input to conv1d, but got input of size: [10000, 1, 1, 400]
