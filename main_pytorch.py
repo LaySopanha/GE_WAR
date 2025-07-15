@@ -21,6 +21,8 @@ def simple_trainer(config, model, train_loader, val_loader, device):
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=5)
     criterion = torch.nn.CrossEntropyLoss()
     
+    print(f"Training on device: {device}")
+    
     for epoch in range(config['epochs']):
         model.train()
         progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{config['epochs']}", leave=False)

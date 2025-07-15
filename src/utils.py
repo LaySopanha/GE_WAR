@@ -104,15 +104,24 @@ def perform_attacks(nb_traces, predictions, plt_attack,correct_key,leakage_fn,nb
         all_rk_evol[i] = rank_evol
     return np.mean(all_rk_evol, axis=0), None
 
+# In src/utils.py
+
 def NTGE_fn(GE):
-    ntge = float('inf')
-    for i in range(len(GE) - 1, -1, -1):
-        if GE[i] > 0:
-            ntge = float('inf')
-            break
-        elif GE[i] == 0:
-            ntge = i + 1
-    return ntge
+    # Find the last index where the rank is not 0
+    # If all ranks are 0, non_zero_indices will be empty
+    non_zero_indices = np.where(GE > 0)[0]
+    
+    if len(non_zero_indices) == 0:
+        # If the GE is 0 from the very first trace
+        return 1
+    else:
+        # The first trace where GE is stably 0 is one after the last non-zero rank
+        last_non_zero_idx = non_zero_indices[-1]
+        if last_non_zero_idx + 1 >= len(GE):
+            # This means the GE never stayed at 0 until the end
+            return float('inf')
+        else:
+            return last_non_zero_idx + 2 # +1 for index, +1 for next trace
 
 def evaluate(device, model, X_attack, plt_attack,correct_key,leakage_fn, nb_attacks=100, total_nb_traces_attacks=2000, nb_traces_attacks = 1700):
     model.eval()
