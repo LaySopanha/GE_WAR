@@ -1,0 +1,29 @@
+Loading traces from slice [4119:4519]...
+The dataset we are using:  Dataset/CHES_2025/CHES_Challenge.h5
+--- Starting W&B Run: Phase2_MLOps_CNN_Test ---
+Epoch 1/50
+----------
+Traceback (most recent call last):                                                                                      
+  File "/teamspace/studios/this_studio/ches2025_pytorch/main_pytorch.py", line 126, in <module>
+    run_experiment(experiment_config)
+  File "/teamspace/studios/this_studio/ches2025_pytorch/main_pytorch.py", line 62, in run_experiment
+    model = training_loop(config, model, train_loader, val_loader, device)
+  File "/teamspace/studios/this_studio/ches2025_pytorch/src/trainer.py", line 27, in training_loop
+    for i, (traces, labels) in enumerate(progress_bar):
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/tqdm/std.py", line 1181, in __iter__
+    for obj in iterable:
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 733, in __next__
+    data = self._next_data()
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 789, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torch/utils/data/_utils/fetch.py", line 52, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torch/utils/data/_utils/fetch.py", line 52, in <listcomp>
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/teamspace/studios/this_studio/ches2025_pytorch/src/dataloader.py", line 74, in __getitem__
+    sample = self.transform(sample)
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torchvision/transforms/transforms.py", line 95, in __call__
+    img = t(img)
+  File "/teamspace/studios/this_studio/ches2025_pytorch/src/dataloader.py", line 83, in __call__
+    'sensitive': torch.from_numpy(np.array(label)).long()}
+KeyboardInterrupt

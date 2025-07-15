@@ -1,0 +1,55 @@
+Loading traces from slice [4119:4519]...
+The dataset we are using:  Dataset/CHES_2025/CHES_Challenge.h5
+--- Starting W&B Run: Phase2_MLOps_CNN_Test ---
+Epoch 1/50
+----------
+Traceback (most recent call last):                                                                                      
+Train Loss: 5.5479 Acc: 0.0043 | Val Loss: 5.5571 Acc: 0.0033
+Epoch 2/50
+----------
+Train Loss: 5.5373 Acc: 0.0043 | Val Loss: 5.5599 Acc: 0.0034
+Epoch 3/50
+----------
+Train Loss: 5.5351 Acc: 0.0045 | Val Loss: 5.5562 Acc: 0.0049
+Epoch 4/50
+----------
+Train Loss: 5.5335 Acc: 0.0046 | Val Loss: 5.5586 Acc: 0.0039
+Epoch 5/50
+----------
+Train Loss: 5.5320 Acc: 0.0046 | Val Loss: 5.5585 Acc: 0.0031
+Epoch 6/50
+----------
+Train Loss: 5.5306 Acc: 0.0045 | Val Loss: 5.5597 Acc: 0.0042
+Epoch 7/50
+----------
+Train Loss: 5.5299 Acc: 0.0045 | Val Loss: 5.5648 Acc: 0.0042
+Epoch 8/50
+----------
+Train Loss: 5.5290 Acc: 0.0044 | Val Loss: 5.5608 Acc: 0.0028
+Epoch 9/50
+----------
+Train Loss: 5.5284 Acc: 0.0044 | Val Loss: 5.5614 Acc: 0.0033
+Epoch 10/50
+----------
+  File "/teamspace/studios/this_studio/ches2025_pytorch/main_pytorch.py", line 126, in <module>
+  File "/teamspace/studios/this_studio/ches2025_pytorch/main_pytorch.py", line 62, in run_experiment
+    poi_start=config['poi_start'], poi_end=config['poi_end'],
+  File "/teamspace/studios/this_studio/ches2025_pytorch/src/trainer.py", line 27, in training_loop
+    for i, (traces, labels) in enumerate(progress_bar):
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/tqdm/std.py", line 1181, in __iter__
+    for obj in iterable:
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 733, in __next__
+    data = self._next_data()
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 789, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torch/utils/data/_utils/fetch.py", line 52, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torch/utils/data/_utils/fetch.py", line 52, in <listcomp>
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/teamspace/studios/this_studio/ches2025_pytorch/src/dataloader.py", line 74, in __getitem__
+    sample = self.transform(sample)
+  File "/home/zeus/miniconda3/envs/cloudspace/lib/python3.10/site-packages/torchvision/transforms/transforms.py", line 95, in __call__
+    img = t(img)
+  File "/teamspace/studios/this_studio/ches2025_pytorch/src/dataloader.py", line 83, in __call__
+    'sensitive': torch.from_numpy(np.array(label)).long()}
+KeyboardInterrupt

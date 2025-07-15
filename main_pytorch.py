@@ -1,120 +1,121 @@
-# This is a sample Python script.
+# main_pytorch.py (Phase 1 - Robust 3-Candidate Test)
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import os
 import random
-from copy import deepcopy
 import numpy as np
 import torch
+from torchvision import transforms
+from copy import deepcopy
 
-from torchvision.transforms import transforms
-from src.dataloader import ToTensor_trace, Custom_Dataset
-from src.net import create_hyperparameter_space, MLP, CNN
-from src.trainer import trainer
-from src.utils import evaluate, AES_Sbox, calculate_HW
+from src.dataloader import ToTensor_trace, Custom_Dataset, DataAugmentation
+from src.net import CNN, weight_init
+from src.trainer import training_loop # We'll use the non-wandb version for this phase
 
-if __name__=="__main__":
-    dataset = "CHES_2025"
-    model_type = "mlp" #mlp, cnn
-    leakage = "HW" #ID, HW
-    train_models = True
-    num_epochs = 50
-    total_num_models = 2
-    nb_traces_attacks = 1700
-    total_nb_traces_attacks = 2000
+# This is a simplified trainer for Phase 1, without wandb, for clarity.
+# You can also use your MLOps trainer, but this is cleaner for this specific task.
+def simple_trainer(config, model, train_loader, val_loader, device):
+    from torch import optim
+    from tqdm import tqdm
+    
+    optimizer = optim.AdamW(model.parameters(), lr=config['lr'])
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=5)
+    criterion = torch.nn.CrossEntropyLoss()
+    
+    for epoch in range(config['epochs']):
+        model.train()
+        progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{config['epochs']}", leave=False)
+        for traces, labels in progress_bar:
+            inputs, labels = traces.to(device), labels.to(device)
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+        
+        # Simple validation
+        model.eval()
+        val_loss = 0
+        with torch.no_grad():
+            for traces, labels in val_loader:
+                inputs, labels = traces.to(device), labels.to(device)
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                val_loss += loss.item() * inputs.size(0)
+        avg_val_loss = val_loss / len(val_loader.dataset)
+        scheduler.step(avg_val_loss)
+        print(f"Epoch {epoch+1}: Val Loss: {avg_val_loss:.4f}")
+        
+    return model
 
-
-    if not os.path.exists('./Result/'):
-        os.mkdir('./Result/')
-
-    root = "./Result/"
-    save_root = root+dataset+"_"+model_type+"_"+leakage+"/"
-    model_root = save_root+"models/"
-    print("root:", root)
-    print("save_time_path:", save_root)
-    if not os.path.exists(root):
-        os.mkdir(root)
-    if not os.path.exists(save_root):
-        os.mkdir(save_root)
-    if not os.path.exists(model_root):
-        os.mkdir(model_root)
-
-    seed = 0
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
+def run_single_training(config):
+    SEED = 42
+    random.seed(SEED)
+    np.random.seed(SEED)
+    torch.manual_seed(SEED)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    nb_attacks = 100
-    if leakage == 'ID':
-        def leakage_fn(att_plt, k):
-            return AES_Sbox[k ^ int(att_plt)]
-        classes = 256
+    print("\n" + "="*50)
+    print(f"STARTING RUN: {config['name']}")
+    print("="*50)
 
-    elif leakage == 'HW':
-        def leakage_fn(att_plt, k):
-            hw = [bin(x).count("1") for x in range(256)]
-            return hw[AES_Sbox[k ^ int(att_plt)]]
-        classes = 9
-    ####You can change the code above if you want to create your own leakage model.
+    dataset_obj = Custom_Dataset(root='../', dataset=config['dataset'], leakage=config['leakage'],
+                                 poi_start=config['poi_start'], poi_end=config['poi_end'],
+                                 train_end=500000, test_end=100000)
+    dataset_obj.split_attack_set_validation_test()
+    
+    train_transform = transforms.Compose([
+        DataAugmentation(max_shift=config['max_shift'], noise_level=config['noise_level']),
+        ToTensor_trace()
+    ])
+    eval_transform = transforms.Compose([ToTensor_trace()])
+    
+    train_dataset = deepcopy(dataset_obj); train_dataset.transform = train_transform; train_dataset.choose_phase("train")
+    val_dataset = deepcopy(dataset_obj); val_dataset.transform = eval_transform; val_dataset.choose_phase("validation")
+    
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=config['batch_size'], shuffle=False)
 
+    if config['leakage'] == 'ID': classes = 256
+    else: classes = 9
+    poi_width = config['poi_end'] - config['poi_start']
+    
+    search_space = { "layers": config['layers'], "neurons": config['neurons'], "activation": config['activation'], "pooling_types": config['pooling_types'], "pooling_sizes": config['pooling_sizes'], "conv_layers": config['conv_layers'], "filters": config['filters'], "kernels": config['kernels'], "padding": config['padding'] }
+    model = CNN(search_space, poi_width, classes).to(device)
+    weight_init(model, config['kernel_initializer'])
 
+    model = simple_trainer(config, model, train_loader, val_loader, device)
+    
+    save_root = f"./Result/{config['dataset']}_{config['model_type']}_{config['leakage']}/"
+    model_root = os.path.join(save_root, "models/")
+    os.makedirs(model_root, exist_ok=True)
+    
+    model_path = os.path.join(model_root, f"{config['name']}.pth")
+    np.save(os.path.join(model_root, f"{config['name']}_config.npy"), config)
+    torch.save(model.state_dict(), model_path)
+    print(f"\nTraining complete for {config['name']}. Model saved to {model_path}")
 
-    dataloadertrain = Custom_Dataset(root='./../', dataset=dataset, leakage="ID",
-                                                 transform=transforms.Compose([ToTensor_trace()]))
-
-    ##########################################################################
-
-    if leakage == "HW":
-        dataloadertrain.Y_profiling = np.array(calculate_HW(dataloadertrain.Y_profiling))
-        dataloadertrain.Y_attack = np.array(calculate_HW(dataloadertrain.Y_attack))
-        # print("Y_profiling:", dataloadertrain.Y_profiling)
-        # print("Y_attack:", dataloadertrain.Y_attack)
-
-    dataloadertrain.split_attack_set_validation_test()
-    dataloadertrain.choose_phase("train")
-    dataloadertest = deepcopy(dataloadertrain)
-    dataloadertest.choose_phase("test")
-    dataloaderval = deepcopy(dataloadertrain)
-    dataloaderval.choose_phase("validation")
-
-    correct_key = dataloadertrain.correct_key
-    X_attack = dataloadertrain.X_attack
-    Y_attack = dataloadertrain.Y_attack
-    plt_attack = dataloadertrain.plt_attack
-    num_sample_pts = X_attack.shape[-1]
-    #Random Search
-    for num_models in range(total_num_models):
-        if train_models == True:
-            config = create_hyperparameter_space(model_type)
-            np.save(model_root + "model_configuration_"+str(num_models)+".npy", config)
-            batch_size = config["batch_size"]
-            num_workers = 0
-            dataloaders = {"train": torch.utils.data.DataLoader(dataloadertrain, batch_size=batch_size,
-                                                                shuffle=True,
-                                                                num_workers=num_workers),
-                           "val": torch.utils.data.DataLoader(dataloaderval, batch_size=batch_size,
-                                                              shuffle=True, num_workers=num_workers)
-                           }
-            dataset_sizes = {"train": len(dataloadertrain), "val": len(dataloaderval)}
-
-
-
-            model = trainer(config, num_epochs, num_sample_pts, dataloaders, dataset_sizes, model_type, classes, device)
-            torch.save(model.state_dict(), model_root + "model_"+str(num_models)+".pth")
-        else:
-            config = np.load(model_root + "model_configuration_"+str(num_models)+".npy", allow_pickle=True).item()
-            if model_type == "mlp":
-                model = MLP(config, num_sample_pts, classes).to(device)
-            elif model_type == "cnn":
-                model = CNN(config, num_sample_pts, classes).to(device)
-            model.load_state_dict(torch.load(model_root + "model_"+str(num_models)+".pth"))
-        #Evaluate
-        # GE, NTGE = evaluate(device, model, X_attack, plt_attack, correct_key,leakage_fn=leakage_fn, nb_attacks=100, total_nb_traces_attacks=2000, nb_traces_attacks=1700)
-        # np.save(model_root + "/result_"+str(num_models), {"GE": GE, "NTGE": NTGE})
+if __name__ == "__main__":
+    base_config = {
+        "epochs": 50, "dataset": "CHES_2025", "leakage": "ID",
+        "poi_start": 4119, "poi_end": 4519, "max_shift": 15, "noise_level": 0.05,
+        "model_type": "cnn", "layers": 2, "neurons": 256, "activation": "selu",
+        "pooling_types": "average_pool", "pooling_sizes": 2, "padding": 0,
+        "kernel_initializer": "glorot_uniform", "batch_size": 256, "lr": 1e-3, "optimizer": "Adam",
+    }
+    
+    # Candidate A: "Shallow & Wide"
+    config_A = deepcopy(base_config)
+    config_A.update({"name": "Candidate_A_Shallow_Wide", "conv_layers": 2, "filters": 16, "kernels": 12})
+    
+    # Candidate B: "Deep & Narrow"
+    config_B = deepcopy(base_config)
+    config_B.update({"name": "Candidate_B_Deep_Narrow", "conv_layers": 4, "filters": 4, "kernels": 32})
+    
+    # Candidate C: "Balanced"
+    config_C = deepcopy(base_config)
+    config_C.update({"name": "Candidate_C_Balanced", "conv_layers": 3, "filters": 8, "kernels": 24})
+    
+    candidate_configs = [config_A, config_B, config_C]
+    
+    for config in candidate_configs:
+        run_single_training(config)
