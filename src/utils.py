@@ -1,12 +1,9 @@
-# src/utils.py
-
-import math
-import random
 import h5py
 import numpy as np
-from tqdm import tqdm
 import torch
 import torch.nn.functional as F
+from tqdm import tqdm
+import random
 
 AES_Sbox = np.array([
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -26,109 +23,107 @@ AES_Sbox = np.array([
     0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94, 0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF,
     0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16
 ])
-AES_Sbox_inv = np.array([
-    0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
-    0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
-    0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e,
-    0x08, 0x2e, 0xa1, 0x66, 0x28, 0xd9, 0x24, 0xb2, 0x76, 0x5b, 0xa2, 0x49, 0x6d, 0x8b, 0xd1, 0x25,
-    0x72, 0xf8, 0xf6, 0x64, 0x86, 0x68, 0x98, 0x16, 0xd4, 0xa4, 0x5c, 0xcc, 0x5d, 0x65, 0xb6, 0x92,
-    0x6c, 0x70, 0x48, 0x50, 0xfd, 0xed, 0xb9, 0xda, 0x5e, 0x15, 0x46, 0x57, 0xa7, 0x8d, 0x9d, 0x84,
-    0x90, 0xd8, 0xab, 0x00, 0x8c, 0xbc, 0xd3, 0x0a, 0xf7, 0xe4, 0x58, 0x05, 0xb8, 0xb3, 0x45, 0x06,
-    0xd0, 0x2c, 0x1e, 0x8f, 0xca, 0x3f, 0x0f, 0x02, 0xc1, 0xaf, 0xbd, 0x03, 0x01, 0x13, 0x8a, 0x6b,
-    0x3a, 0x91, 0x11, 0x41, 0x4f, 0x67, 0xdc, 0xea, 0x97, 0xf2, 0xcf, 0xce, 0xf0, 0xb4, 0xe6, 0x73,
-    0x96, 0xac, 0x74, 0x22, 0xe7, 0xad, 0x35, 0x85, 0xe2, 0xf9, 0x37, 0xe8, 0x1c, 0x75, 0xdf, 0x6e,
-    0x47, 0xf1, 0x1a, 0x71, 0x1d, 0x29, 0xc5, 0x89, 0x6f, 0xb7, 0x62, 0x0e, 0xaa, 0x18, 0xbe, 0x1b,
-    0xfc, 0x56, 0x3e, 0x4b, 0xc6, 0xd2, 0x79, 0x20, 0x9a, 0xdb, 0xc0, 0xfe, 0x78, 0xcd, 0x5a, 0xf4,
-    0x1f, 0xdd, 0xa8, 0x33, 0x88, 0x07, 0xc7, 0x31, 0xb1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xec, 0x5f,
-    0x60, 0x51, 0x7f, 0xa9, 0x19, 0xb5, 0x4a, 0x0d, 0x2d, 0xe5, 0x7a, 0x9f, 0x93, 0xc9, 0x9c, 0xef,
-    0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61,
-    0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d
-])
 
-def HW(s):
-    return bin(s).count("1")
-
-def calculate_HW(data):
-    hw = [bin(x).count("1") for x in range(256)]
-    return [hw[int(s)] for s in data]
-
-def load_ctf_2025(filename, leakage_model='HW', byte = 0, train_begin = 0, train_end = 100000,test_begin = 0, test_end = 50000,
-                  poi_start=0, poi_end=7000):
+def load_ctf_2025(filename, leakage_model='ID', byte=0, train_end=500000, test_end=100000):
     in_file = h5py.File(filename, "r")
-    
-    print(f"Loading traces from slice [{poi_start}:{poi_end}]...")
-    X_profiling = np.array(in_file['Profiling_traces/traces'][train_begin:train_end, poi_start:poi_end])
-    P_profiling = np.array(in_file['Profiling_traces/metadata'][train_begin:train_end]['plaintext'][:, byte])
-    
-    if byte != 0:
-        key_profiling = np.array(in_file['Profiling_traces/metadata'][train_begin:train_end]['key'][:,byte])
-        Y_profiling = np.array([AES_Sbox[p ^ k] for p, k in zip(P_profiling, key_profiling)])
-    else:
-        Y_profiling = np.array(in_file['Profiling_traces/metadata'][train_begin:train_end]['labels'])
-        
-    if leakage_model == 'HW': Y_profiling = calculate_HW(Y_profiling)
+    # Profiling data
+    X_profiling = np.array(in_file['Profiling_traces/traces'][:train_end], dtype=np.float32)
+    plt_profiling = np.array(in_file['Profiling_traces/metadata'][:train_end]['plaintext'][:, byte])
+    Y_profiling = np.array(in_file['Profiling_traces/metadata'][:train_end]['labels'], dtype=np.uint8) # ID labels are byte 0
 
-    X_attack = np.array(in_file['Attack_traces/traces'][test_begin:test_end, poi_start:poi_end])
-    P_attack = np.array(in_file['Attack_traces/metadata'][test_begin:test_end]['plaintext'][:, byte])
-    attack_key = np.array(in_file['Attack_traces/metadata'][test_begin:test_end]['key'][0, byte])
+    # Attack data
+    X_attack = np.array(in_file['Attack_traces/traces'][:test_end], dtype=np.float32)
+    plt_attack = np.array(in_file['Attack_traces/metadata'][:test_end]['plaintext'][:, byte])
+    Y_attack = np.array(in_file['Attack_traces/metadata'][:test_end]['labels'], dtype=np.uint8)
     
-    if byte != 0:
-        key_attack = np.array(in_file['Attack_traces/metadata'][test_begin:test_end]['key'][:,byte])
-        Y_attack = np.array([AES_Sbox[p ^ k] for p, k in zip(P_attack, key_attack)])
-    else:
-        Y_attack = np.array(in_file['Attack_traces/metadata'][test_begin:test_end]['labels'])
-        
-    if leakage_model == 'HW': Y_attack = calculate_HW(Y_attack)
-
-    return (X_profiling, X_attack), (Y_profiling, Y_attack), (P_profiling, P_attack), attack_key
+    correct_key = np.array(in_file['Attack_traces/metadata'][0]['key'][byte])
+    in_file.close()
+    
+    # NOTE: The provided labels are for the ID model (S-box output). If a HW model were needed,
+    # it would be calculated from these ID labels. The current sweep uses ID, so no conversion is needed.
+    
+    print(f"Profiling traces: {X_profiling.shape}, Attack traces: {X_attack.shape}")
+    print(f"Correct key for byte {byte} is: {correct_key}")
+    
+    return (X_profiling, X_attack), (Y_profiling, Y_attack), (plt_profiling, plt_attack), correct_key
 
 def rk_key(rank_array, key):
-    try:
-        key_val = rank_array[key]
-        sorted_ranks = np.sort(rank_array)[::-1]
-        final_rank = np.where(sorted_ranks == key_val)[0][0]
-    except (ValueError, IndexError):
-        final_rank = 255.0
-    return float(final_rank)
+    key_val = rank_array[key]
+    sorted_rank = np.sort(rank_array)[::-1]
+    return np.where(sorted_rank == key_val)[0][0]
 
-def rank_compute(prediction, att_plt, correct_key,leakage_fn):
-    (nb_traces, _) = prediction.shape
+def rank_compute(prediction, att_plt, correct_key, leakage_fn):
+    (nb_traces, nb_hyp) = prediction.shape
     key_log_prob = np.zeros(256)
     prediction = np.log(prediction + 1e-40)
-    rank_evol = np.full(nb_traces, 255.0)
+    rank_evol = np.full(nb_traces, 255, dtype=np.int16)
+
     for i in range(nb_traces):
         for k in range(256):
             y_value = leakage_fn(att_plt[i], k)
             key_log_prob[k] += prediction[i, y_value]
         rank_evol[i] = rk_key(key_log_prob, correct_key)
-    return rank_evol, key_log_prob
+    return rank_evol
 
-def perform_attacks(nb_traces, predictions, plt_attack,correct_key,leakage_fn,nb_attacks=1, shuffle=True):
-    all_rk_evol = np.zeros((nb_attacks, nb_traces))
-    for i in range(nb_attacks):
+def perform_attacks(max_traces, predictions, plt_attack, correct_key, leakage_fn, nb_attacks=100):
+    all_rk_evol = np.zeros((nb_attacks, max_traces), dtype=np.int16)
+    
+    for i in tqdm(range(nb_attacks), desc="Performing attacks"):
+        # Shuffle data for each attack run
         indices = np.arange(len(predictions))
-        if shuffle: np.random.shuffle(indices)
+        random.shuffle(indices)
         shuffled_predictions = predictions[indices]
         shuffled_plt = plt_attack[indices]
-        rank_evol, _ = rank_compute(shuffled_predictions[:nb_traces], shuffled_plt[:nb_traces], correct_key, leakage_fn=leakage_fn)
-        all_rk_evol[i] = rank_evol
-    return np.mean(all_rk_evol, axis=0), None
+        
+        # Calculate rank evolution for this run
+        all_rk_evol[i] = rank_compute(shuffled_predictions[:max_traces], shuffled_plt[:max_traces], correct_key, leakage_fn)
+        
+    return np.mean(all_rk_evol, axis=0)
 
 def NTGE_fn(GE):
-    non_zero_indices = np.where(GE > 0)[0]
-    if len(non_zero_indices) == 0: return 1
-    last_non_zero_idx = non_zero_indices[-1]
-    return float('inf') if last_non_zero_idx + 1 >= len(GE) else last_non_zero_idx + 2
+    if GE is None: return float('inf')
+    ntge = float('inf')
+    for i in range(len(GE) - 1, -1, -1):
+        if GE[i] > 0:
+            break
+        elif GE[i] == 0:
+            ntge = i + 1 # Number of traces is index + 1
+    return ntge
 
-def evaluate(device, model, X_attack, plt_attack,correct_key,leakage_fn, nb_attacks=100, total_nb_traces_attacks=2000, nb_traces_attacks = 1700):
+def evaluate(device, model, X_attack, plt_attack, correct_key, leakage_fn, nb_attacks=50, max_traces=10000):
     model.eval()
+    if len(X_attack) == 0:
+        print("Warning: No attack traces provided for evaluation.")
+        return [], float('inf'), 255 # Return a default bad GE
+
+    # Ensure max_traces does not exceed available traces
+    max_traces = min(max_traces, len(X_attack))
+    print(f"Evaluating GE/NTGE with {max_traces} traces over {nb_attacks} attacks...")
+
+    # Predict probabilities in batches to avoid OOM errors
+    batch_size = 512
+    all_predictions = []
     with torch.no_grad():
-        attack_traces_tensor = torch.from_numpy(X_attack[:total_nb_traces_attacks]).to(device).float()
-        predictions = F.softmax(model(attack_traces_tensor), dim=1).cpu().numpy()
-    GE, _ = perform_attacks(nb_traces_attacks, predictions, plt_attack, correct_key, nb_attacks=nb_attacks, shuffle=True, leakage_fn=leakage_fn)
+        for i in range(0, len(X_attack), batch_size):
+            batch_x = torch.from_numpy(X_attack[i:i+batch_size]).to(device).float()
+            preds = F.softmax(model(batch_x), dim=1).cpu().numpy()
+            all_predictions.append(preds)
+    
+    predictions = np.concatenate(all_predictions)
+
+    # Perform attacks and get average GE curve
+    GE = perform_attacks(max_traces, predictions, plt_attack, correct_key, leakage_fn, nb_attacks)
     NTGE = NTGE_fn(GE)
-    print("\n--- Evaluation Results ---")
-    print(f"Final GE after {nb_traces_attacks} traces: {GE[-1] if len(GE) > 0 else 'N/A'}")
-    print(f"NTGE (first trace count where GE=0 stabilizes): {NTGE}")
-    print("--------------------------\n")
-    return GE, NTGE
+    
+    ### --- NEW --- ###
+    # Get the final GE value at the maximum number of traces.
+    # If the GE curve is empty for some reason, default to the worst possible rank (255).
+    final_ge_at_max_traces = GE[-1] if (GE is not None and len(GE) > 0) else 255
+    ### --- END NEW --- ###
+    
+    print(f"Final GE after {max_traces} traces: {final_ge_at_max_traces:.2f}")
+    print(f"Final NTGE: {NTGE}")
+    
+    ### --- CHANGED --- ###
+    # Return all three metrics now
+    return GE, NTGE, final_ge_at_max_traces
