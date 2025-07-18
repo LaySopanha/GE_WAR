@@ -42,112 +42,49 @@ class MLP(nn.Module):
 
 
 class CNN(nn.Module):
-    def __init__(self, search_space,num_sample_pts, classes):
+    def __init__(self, search_space, num_sample_pts, classes):
         super(CNN, self).__init__()
-        self.num_layers = search_space["layers"]
-        self.neurons = search_space["neurons"]
-        self.activation = search_space["activation"]
-        self.conv_layers = search_space["conv_layers"]
-
-        self.layers = nn.ModuleList()
-        #CNN
-        self.kernels, self.strides, self.filters, self.pooling_type, self.pooling_sizes, self.pooling_strides, self.paddings = create_cnn_hp(search_space)
-        num_features = num_sample_pts
-        for layer_index in range(0, self.conv_layers):
-            #Convolution layer
-            new_out_channels = self.filters[layer_index]
-            if layer_index == 0:
-                conv1d_kernel = self.kernels[layer_index]
-                conv1d_stride = self.kernels[layer_index]
-                new_num_features = cal_num_features_conv1d(num_features,kernel_size = self.kernels[layer_index], stride = self.kernels[layer_index], padding = self.paddings[layer_index])
-                if new_num_features <=0:
-                    conv1d_kernel = 1
-                    conv1d_stride = 1
-                    new_num_features = cal_num_features_conv1d(num_features, kernel_size=1,
-                                                               stride=1,
-                                                               padding=self.paddings[layer_index])
-                num_features = new_num_features
-                self.layers.append(nn.Conv1d(in_channels=1, out_channels=new_out_channels, kernel_size=conv1d_kernel,
-                                             stride=conv1d_stride, padding=self.paddings[layer_index]))
-
+        self.conv_base = nn.Sequential()
+        kernels, strides, filters, pooling_types, pooling_sizes, pooling_strides, paddings = create_cnn_hp(search_space)
+        in_channels, current_len = 1, num_sample_pts
+        for i in range(search_space["conv_layers"]):
+            kernel_size = min(kernels[i], current_len) if current_len > 0 else 1
+            stride = max(1, strides[i])
+            padding = paddings[i]
+            self.conv_base.add_module(f"conv_{i}", nn.Conv1d(in_channels, filters[i], kernel_size, stride, padding))
+            current_len = math.floor(((current_len + (2 * padding) - (kernel_size - 1) - 1) / stride) + 1) if stride > 0 else 0
+            activation = search_space.get("activation", "relu")
+            if activation == 'selu': self.conv_base.add_module(f"act_{i}", nn.SELU())
+            else: self.conv_base.add_module(f"act_{i}", nn.ReLU())
+            pool_size = min(pooling_sizes[i], current_len) if current_len > 0 else 1
+            pool_stride = max(1, min(pooling_strides[i], current_len) if current_len > 0 else 1)
+            pooling_type = pooling_types[i]
+            if pooling_type == "max_pool":
+                self.conv_base.add_module(f"pool_{i}", nn.MaxPool1d(pool_size, pool_stride))
+                current_len = math.floor(((current_len - pool_size) / pool_stride) + 1)
             else:
-                conv1d_kernel = self.kernels[layer_index]
-                conv1d_stride = self.kernels[layer_index]
-                new_num_features = cal_num_features_conv1d(num_features, kernel_size=self.kernels[layer_index],
-                                                       stride=self.kernels[layer_index],
-                                                       padding=self.paddings[layer_index])
-                if new_num_features <= 0:
-                    conv1d_kernel = 1
-                    conv1d_stride = 1
-                    new_num_features = cal_num_features_conv1d(num_features, kernel_size=1,
-                                                               stride=1,
-                                                               padding=self.paddings[layer_index])
-                num_features = new_num_features
-                self.layers.append(nn.Conv1d(in_channels=prev_out_channels, out_channels=new_out_channels, kernel_size=conv1d_kernel,
-                                             stride=conv1d_stride, padding=self.paddings[layer_index]))
-            #Activation Function
-            if self.activation == 'relu':
-                self.layers.append(nn.ReLU())
-            elif self.activation == 'selu':
-                self.layers.append(nn.SELU())
-            elif self.activation == 'tanh':
-                self.layers.append(nn.Tanh())
-            elif self.activation == 'elu':
-                self.layers.append(nn.ELU())
-            #Pooling Layer
-            if self.pooling_type[layer_index] == "max_pool":
-                layer_pool_size = self.pooling_sizes[layer_index]
-                layer_pool_stride = self.pooling_strides[layer_index]
-                new_num_features = cal_num_features_maxpool1d(num_features, layer_pool_size, layer_pool_stride)
-
-                if new_num_features <= 0:
-                    layer_pool_size = 1
-                    layer_pool_stride = 1
-                    new_num_features = cal_num_features_maxpool1d(num_features, 1, 1)
-                num_features = new_num_features
-                self.layers.append(nn.MaxPool1d(kernel_size=layer_pool_size, stride=layer_pool_stride))
-            elif self.pooling_type[layer_index] == "average_pool":
-                pool_size = self.pooling_sizes[layer_index]
-                pool_stride = self.pooling_strides[layer_index]
-                new_num_features = cal_num_features_avgpool1d(num_features, pool_size, pool_stride)
-                if new_num_features <= 0:
-                    pool_size = 1
-                    pool_stride = 1
-                    new_num_features = cal_num_features_maxpool1d(num_features, 1, 1)
-                num_features = new_num_features
-                self.layers.append(nn.AvgPool1d(kernel_size=pool_size, stride=pool_stride))
-            #BatchNorm
-            self.layers.append(nn.BatchNorm1d(new_out_channels))
-            prev_out_channels = new_out_channels
-        #MLP
-        self.layers.append(nn.Flatten())
-        #Flatten
-        flatten_neurons =prev_out_channels*num_features
-        for layer_index in range(0, self.num_layers):
-            if layer_index == 0:
-                self.layers.append(nn.Linear(flatten_neurons, self.neurons))
-            else:
-                self.layers.append(nn.Linear(self.neurons, self.neurons))
-            #Activation layer
-            if self.activation == 'relu':
-                self.layers.append(nn.ReLU())
-            elif self.activation == 'selu':
-                self.layers.append(nn.SELU())
-            elif self.activation == 'tanh':
-                self.layers.append(nn.Tanh())
-            elif self.activation == 'elu':
-                self.layers.append(nn.ELU())
-        self.softmax_layer = nn.Linear(self.neurons, classes)
-
-    def number_of_parameters(self):
-        return (sum(p.numel() for p in self.parameters() if p.requires_grad))
-
+                self.conv_base.add_module(f"pool_{i}", nn.AvgPool1d(pool_size, pool_stride))
+                current_len = math.floor(((current_len - pool_size) / pool_stride) + 1)
+            self.conv_base.add_module(f"bn_{i}", nn.BatchNorm1d(filters[i]))
+            in_channels = filters[i]
+            if current_len <= 0: break
+        self.mlp_head = nn.Sequential()
+        self.mlp_head.add_module("flatten", nn.Flatten())
+        in_features = int(max(1, current_len) * in_channels)
+        num_dense_layers, neurons = search_space.get("layers", 1), search_space.get("neurons", 256)
+        for i in range(num_dense_layers):
+            self.mlp_head.add_module(f"dense_{i}", nn.Linear(in_features, neurons))
+            activation = search_space.get("activation", "relu")
+            if activation == 'selu': self.mlp_head.add_module(f"dense_act_{i}", nn.SELU())
+            else: self.mlp_head.add_module(f"dense_act_{i}", nn.ReLU())
+            in_features = neurons
+        self.softmax_layer = nn.Linear(in_features, classes)
     def forward(self, x):
-        for layer in self.layers:
-            x = layer(x)
-        x = self.softmax_layer(x) #F.softmax()
-        x = x.squeeze(1)
-        return x
+        x = self.conv_base(x)
+        x = self.mlp_head(x)
+        x = self.softmax_layer(x)
+        return x.squeeze(1)
+
 
 
 def cal_num_features_conv1d(n_sample_points,kernel_size, stride,padding = 0, dilation = 1):

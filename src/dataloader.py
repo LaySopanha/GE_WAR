@@ -1,94 +1,55 @@
-import os
-import h5py
-import torch
-import numpy as np
-from torch.utils.data import Dataset
+# src/dataloader.py
+
+import os, numpy as np, torch
 from sklearn.preprocessing import StandardScaler
+from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
-from src.utils import load_ctf_2025 # We'll keep the loader in utils
+from src.utils import load_ctf_2025
 
 class DataAugmentation:
-    """
-    Applies random horizontal shift and adds Gaussian noise to a trace.
-    """
-    def __init__(self, max_shift, noise_level):
-        self.max_shift = max_shift
-        self.noise_level = noise_level
-
+    def __init__(self, max_shift=15, noise_level=0.05):
+        self.max_shift, self.noise_level = max_shift, noise_level
     def __call__(self, sample):
-        trace, sensitive = sample['trace'], sample['sensitive']
-        
-        # Random shift
-        shift = np.random.randint(-self.max_shift, self.max_shift + 1)
-        trace = np.roll(trace, shift, axis=-1)
-        
-        # Add Gaussian noise
-        noise = np.random.normal(0, self.noise_level, trace.shape).astype(np.float32)
-        trace += noise
-        
+        trace = sample['trace']
+        if self.max_shift > 0 and np.random.rand() < 0.7:
+            shift = np.random.randint(-self.max_shift, self.max_shift + 1)
+            trace = np.roll(trace, shift)
+        if self.noise_level > 0 and np.random.rand() < 0.7:
+            trace += np.random.normal(0, self.noise_level, trace.shape).astype(trace.dtype)
         sample['trace'] = trace
         return sample
 
 class ToTensor_trace:
-    """Convert ndarrays in sample to Tensors."""
     def __call__(self, sample):
         trace, label = sample['trace'], sample['sensitive']
-        return torch.from_numpy(trace).float(), torch.from_numpy(np.array(label)).long()
+        return torch.from_numpy(trace.copy()).unsqueeze(0).float(), torch.from_numpy(np.array([label])).long()
 
 class Custom_Dataset(Dataset):
-    def __init__(self, root='./', dataset="CHES_2025", leakage="ID", poi_start=0, poi_end=7000, 
-                 train_end=500000, test_end=100000, transform=None):
-        
-        data_root = os.path.join(root, 'Dataset/CHES_2025/CHES_Challenge.h5')
-        print(f"Loading dataset: {data_root}")
-        
+    def __init__(self, root='./', dataset="CHES_2025", leakage="HW", transform=None,
+                 poi_start=0, poi_end=7000, train_end=45000, test_end=10000):
         (self.X_profiling, self.X_attack), (self.Y_profiling, self.Y_attack), \
-        (self.plt_profiling, self.plt_attack), self.correct_key = \
-            load_ctf_2025(data_root, leakage_model=leakage, byte=0, 
-                          train_end=train_end, test_end=test_end)
-
-        print(f"Applying POI: Slicing traces from {poi_start} to {poi_end}.")
-        self.X_profiling = self.X_profiling[:, poi_start:poi_end]
-        self.X_attack = self.X_attack[:, poi_start:poi_end]
-
-        print("Standardizing profiling data and fitting scaler...")
-        self.scaler = StandardScaler()
-        self.X_profiling = self.scaler.fit_transform(self.X_profiling)
-        
-        # Reshape to (num_traces, 1, num_points) for PyTorch Conv1d
-        self.X_profiling = np.expand_dims(self.X_profiling, 1)
-        self.X_attack = np.expand_dims(self.X_attack, 1)
-        
+        (self.plt_profiling, self.plt_attack), self.correct_key = load_ctf_2025(
+            root + 'Dataset/CHES_2025/CHES_Challenge.h5', leakage_model=leakage, train_end=train_end,
+            test_end=test_end, poi_start=poi_start, poi_end=poi_end)
         self.transform = transform
-        self.phase = "train" # Default phase
+        # The scaler is now handled in the main script after POI selection.
+        # self.scaler = StandardScaler()
+        # if len(self.X_profiling) > 0: self.X_profiling = self.scaler.fit_transform(self.X_profiling)
+        # if len(self.X_attack) > 0: self.X_attack = self.scaler.transform(self.X_attack)
 
-    def split_attack_set_validation_test(self, validation_size=0.5):
-        # The attack set is split into validation (for hyperparameter tuning) and a final test set (unused during tuning)
-        self.X_attack_val, self.X_attack_test, \
-        self.Y_attack_val, self.Y_attack_test, \
-        self.plt_attack_val, self.plt_attack_test = \
-            train_test_split(self.X_attack, self.Y_attack, self.plt_attack, 
-                             test_size=1-validation_size, random_state=42, stratify=self.Y_attack)
-        print(f"Attack set split: {len(self.X_attack_val)} for validation, {len(self.X_attack_test)} for final test.")
+    def split_attack_set_validation_test(self):
+        (self.X_attack_test, self.X_attack_val, self.Y_attack_test, self.Y_attack_val,
+         self.plt_attack_test, self.plt_attack_val) = train_test_split(
+            self.X_attack, self.Y_attack, self.plt_attack, test_size=0.1, random_state=0)
 
     def choose_phase(self, phase):
-        self.phase = phase
-        if phase == 'train':
-            self.X, self.Y = self.X_profiling, self.Y_profiling
-        elif phase == 'validation':
-            self.X, self.Y, self.Plaintext = self.X_attack_val, self.Y_attack_val, self.plt_attack_val
-        elif phase == 'test':
-            self.X, self.Y, self.Plaintext = self.X_attack_test, self.Y_attack_test, self.plt_attack_test
+        if phase == 'train': self.X, self.Y, self.Plaintext = self.X_profiling, self.Y_profiling, self.plt_profiling
+        elif phase == 'validation': self.X, self.Y, self.Plaintext = self.X_attack_val, self.Y_attack_val, self.plt_attack_val
+        elif phase == 'test': self.X, self.Y, self.Plaintext = self.X_attack_test, self.Y_attack_test, self.plt_attack_test
 
-    def __len__(self):
-        return len(self.X)
-
+    def __len__(self): return len(self.X)
     def __getitem__(self, idx):
-        trace = self.X[idx]
-        sensitive = self.Y[idx]
-        sample = {'trace': trace, 'sensitive': sensitive}
-        
+        sample = {'trace': self.X[idx], 'sensitive': self.Y[idx]}
         if self.transform:
-            sample = self.transform(sample)
-        
-        return sample
+            return self.transform(sample)
+        return sample['trace'], sample['sensitive']
