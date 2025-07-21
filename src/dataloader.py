@@ -62,7 +62,7 @@ class Custom_Dataset(Dataset):
         self.transform = transform
         self.phase = "train" # Default phase
 
-    def split_attack_set_validation_test(self, validation_size=0.5):
+    def split_attack_set_validation_test(self, validation_size=0.1):
         # The attack set is split into validation (for hyperparameter tuning) and a final test set (unused during tuning)
         self.X_attack_val, self.X_attack_test, \
         self.Y_attack_val, self.Y_attack_test, \

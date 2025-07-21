@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torchvision import transforms
 from sklearn.preprocessing import StandardScaler
-
+from src.dataloader import Custom_Dataset, ToTensor_trace
 # We only need CNN and evaluate from our modules
 from src.net import CNN
 from src.utils import evaluate, AES_Sbox, load_ctf_2025
@@ -15,9 +15,9 @@ if __name__=="__main__":
     # ======================================================================
     # === CHOOSE WHICH CANDIDATE TO TEST ===
     # ======================================================================
-    # CANDIDATE_NAME = "Candidate_A_Shallow_Wide" 
+    CANDIDATE_NAME = "Candidate_A_Shallow_Wide" 
     # CANDIDATE_NAME = "Candidate_B_Deep_Narrow"
-    CANDIDATE_NAME = "Candidate_C_Balanced"
+    # CANDIDATE_NAME = "Candidate_C_Balanced"
     # ======================================================================
 
     print(f"--- Evaluating model: {CANDIDATE_NAME} ---")
@@ -41,31 +41,47 @@ if __name__=="__main__":
     torch.manual_seed(seed)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
-    if LEAKAGE == 'ID':
-        def leakage_fn(att_plt, k): return AES_Sbox[k ^ int(att_plt)]
-        classes = 256
-    else:
-        def leakage_fn(att_plt, k):
-            hw = [bin(x).count("1") for x in range(256)]; return hw[AES_Sbox[k ^ int(att_plt)]]
-        classes = 9
-    
+   
     # --- Load Data and Preprocess Correctly ---
     
     # Step 1: Load the raw attack traces using the untouchable block's logic
     # We create a temporary dataloader object just to get the data arrays
     # Note: We are using leakage="ID" here as specified in the untouchable block
     # but the Y_attack labels are not used in the final evaluation logic anyway.
-    from src.dataloader import Custom_Dataset, ToTensor_trace
-    temp_dataloader_for_attack_data = Custom_Dataset(root='../', dataset=DATASET, leakage="ID", transform=transforms.Compose([ToTensor_trace()]))
-    temp_dataloader_for_attack_data.split_attack_set_validation_test()
-    temp_dataloader_for_attack_data.choose_phase("test")
-    X_attack_full = temp_dataloader_for_attack_data.X_attack_test
-    plt_attack = temp_dataloader_for_attack_data.plt_attack_test
-    correct_key = temp_dataloader_for_attack_data.correct_key
+   
 
-    # Step 2: Manually crop the attack traces to our POI
-    X_attack_cropped = X_attack_full[:, POI_START:POI_END]
-    print(f"Attack traces manually cropped to shape: {X_attack_cropped.shape}")
+    ##################please do not touch this code below###################
+    dataloadertest = Custom_Dataset(root='./../', dataset=DATASET, leakage="ID", #change root to where you download your dataset.
+                                                 transform=transforms.Compose([ToTensor_trace()]))
+    #########################################################################
+
+    if LEAKAGE == 'ID':
+            def leakage_fn(att_plt, k): return AES_Sbox[k ^ int(att_plt)]
+            classes = 256
+    else:
+        def leakage_fn(att_plt, k):
+            hw = [bin(x).count("1") for x in range(256)]; return hw[AES_Sbox[k ^ int(att_plt)]]
+        classes = 9
+
+   ##################please do not touch this code here###################
+    dataloadertest.split_attack_set_validation_test()
+    dataloadertest.choose_phase("test")
+    correct_key = dataloadertest.correct_key
+    X_attack = dataloadertest.X_attack
+    Y_attack = dataloadertest.Y_attack
+    plt_attack = dataloadertest.plt_attack
+    num_sample_pts = X_attack.shape[-1]
+    #########################################################################
+    
+    # Manually apply the POI to the attack traces loaded by the dataloader.
+    # This is necessary because the untouchable block does not pass the POI to the Custom_Dataset.
+    print(f"Manually applying POI to attack traces: {POI_START} to {POI_END}")
+    X_attack = X_attack[:, :, POI_START:POI_END]
+
+
+    # Step 2: The data from the dataloader is already 3D. We need to reshape it for the scaler.
+    num_traces, _, num_points = X_attack.shape
+    X_attack_2d = X_attack.reshape(num_traces, num_points)
 
     # Step 3: Get the correct scaler. We MUST use the same scaling as was used in training.
     # To do this, we load the cropped *profiling* data and fit a scaler to it.
@@ -80,9 +96,12 @@ if __name__=="__main__":
     scaler = StandardScaler()
     scaler.fit(X_profiling_cropped)
 
-    # Step 4: Apply the correctly fitted scaler to our cropped attack traces
-    X_attack_final = scaler.transform(X_attack_cropped)
+    # Step 4: Apply the correctly fitted scaler to our 2D attack traces
+    X_attack_scaled_2d = scaler.transform(X_attack_2d)
     print("Attack traces scaled correctly.")
+
+    # Step 5: Reshape the scaled data back to 3D for the model
+    X_attack_final = X_attack_scaled_2d.reshape(num_traces, 1, num_points)
     
     total_nb_traces_attacks = len(X_attack_final)
 
@@ -96,7 +115,12 @@ if __name__=="__main__":
     model.eval()
 
     # --- Evaluate ---
-    GE, NTGE = evaluate(device, model, X_attack_final, plt_attack, correct_key, 
-                        leakage_fn=leakage_fn, nb_attacks=nb_attacks,
-                        total_nb_traces_attacks=total_nb_traces_attacks,
-                        nb_traces_attacks=total_nb_traces_attacks)
+    GE_curve, NTGE = evaluate(device, model, X_attack_final, plt_attack, correct_key, 
+                              nb_attacks=nb_attacks,
+                              nb_traces_attacks=total_nb_traces_attacks)
+
+    final_ge = GE_curve[-1] if len(GE_curve) > 0 else float('inf')
+    print("\n--- Evaluation Complete ---")
+    print(f"Final Guessing Entropy (GE) at {total_nb_traces_attacks} traces: {final_ge}")
+    print(f"Number of Traces to Guess Entropy (NTGE): {NTGE}")
+    print("---------------------------\n")
