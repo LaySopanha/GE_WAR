@@ -1,0 +1,159 @@
+_wandb:
+    value:
+        cli_version: 0.21.0
+        e:
+            visw7v13yk0fyfy6x82a08y3sjaaf0hz:
+                args:
+                    - --activation=relu
+                    - --batch_size=128
+                    - --conv_layers=3
+                    - --dataset=CHES_2025
+                    - --epochs=20
+                    - --filters=8
+                    - --kernel_initializer=glorot_uniform
+                    - --kernels=12
+                    - --layers=2
+                    - --leakage=ID
+                    - --lr=0.001
+                    - --max_shift=10
+                    - --model_type=cnn
+                    - --neurons=256
+                    - --noise_level=0.03505419099952169
+                    - --num_poi=100
+                    - --optimizer=Adam
+                    - --padding=0
+                    - --poi_end=4519
+                    - --poi_start=4119
+                    - --pooling_sizes=4
+                    - --pooling_types=average_pool
+                codePath: main_pytorch.py
+                codePathLocal: main_pytorch.py
+                cpu_count: 24
+                cpu_count_logical: 32
+                cudaVersion: "12.6"
+                disk:
+                    /:
+                        total: "999387295744"
+                        used: "199291736064"
+                email: panhalay69420@gmail.com
+                executable: C:\Users\user\Desktop\GE_War\CHES_PANHA\GE_WAR\newenv\Scripts\python.exe
+                git:
+                    commit: b06e2746c2aefabf4f3c4624fe8579a36bc70114
+                    remote: https://github.com/LaySopanha/GE_WAR.git
+                gpu: NVIDIA GeForce RTX 4060
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 3072
+                      memoryTotal: "8585740288"
+                      name: NVIDIA GeForce RTX 4060
+                      uuid: GPU-bafaf09c-ec81-2d5f-bf09-30ffa3640b46
+                host: DESKTOP-0OLFNKN
+                memory:
+                    total: "34159616000"
+                os: Windows-10-10.0.22621-SP0
+                program: C:\Users\user\Desktop\GE_War\CHES_PANHA\GE_WAR\main_pytorch.py
+                python: CPython 3.10.11
+                root: C:\Users\user\Desktop\GE_War\CHES_PANHA\GE_WAR
+                startedAt: "2025-07-17T20:56:52.439386Z"
+                writerId: visw7v13yk0fyfy6x82a08y3sjaaf0hz
+        m: []
+        python_version: 3.10.11
+        t:
+            "1":
+                - 1
+                - 5
+                - 41
+                - 53
+            "2":
+                - 1
+                - 5
+                - 41
+                - 53
+            "3":
+                - 1
+                - 2
+                - 3
+                - 14
+                - 62
+            "4": 3.10.11
+            "5": 0.21.0
+            "8":
+                - 3
+            "12": 0.21.0
+            "13": windows-amd64
+        visualize:
+            GE vs. Traces:
+                panel_config:
+                    fieldSettings:
+                        stroke: null
+                        x: Traces
+                        "y": GE
+                    panelDefId: wandb/line/v0
+                    stringSettings:
+                        title: GE vs. Traces
+                    transform:
+                        name: tableWithLeafColNames
+                    userQuery:
+                        queryFields:
+                            - args:
+                                - name: runSets
+                                  value: ${runSets}
+                              fields:
+                                - fields: []
+                                  name: id
+                                - fields: []
+                                  name: name
+                                - fields: []
+                                  name: _defaultColorIndex
+                                - args:
+                                    - name: tableKey
+                                      value: GE vs. Traces_table
+                                  fields: []
+                                  name: summaryTable
+                              name: runSets
+                panel_type: Vega2
+activation:
+    value: relu
+batch_size:
+    value: 128
+conv_layers:
+    value: 3
+dataset:
+    value: CHES_2025
+epochs:
+    value: 20
+filters:
+    value: 8
+kernel_initializer:
+    value: glorot_uniform
+kernels:
+    value: 12
+layers:
+    value: 2
+leakage:
+    value: ID
+lr:
+    value: 0.001
+max_shift:
+    value: 10
+model_type:
+    value: cnn
+neurons:
+    value: 256
+noise_level:
+    value: 0.03505419099952169
+num_poi:
+    value: 100
+optimizer:
+    value: Adam
+padding:
+    value: 0
+poi_end:
+    value: 4519
+poi_start:
+    value: 4119
+pooling_sizes:
+    value: 4
+pooling_types:
+    value: average_pool

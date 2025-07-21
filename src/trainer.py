@@ -1,5 +1,5 @@
 # src/trainer.py
-import torch, time, os, wandb
+import torch, time, os
 from torch import nn, optim
 from tqdm import tqdm
 
@@ -8,7 +8,6 @@ def training_loop(config, model, train_loader, val_loader, device):
     else: optimizer = optim.RMSprop(model.parameters(), lr=config['lr'])
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=5)
     criterion = nn.CrossEntropyLoss()
-    wandb.watch(model, criterion, log="all", log_freq=100)
     best_val_loss = float('inf')
     for epoch in range(config['epochs']):
         model.train()
@@ -32,11 +31,8 @@ def training_loop(config, model, train_loader, val_loader, device):
         avg_val_loss = val_loss / len(val_loader.dataset)
         avg_val_acc = val_corrects.double() / len(val_loader.dataset)
         print(f"Epoch {epoch+1}: Val Loss: {avg_val_loss:.4f}, Val Acc: {avg_val_acc:.4f}")
-        wandb.log({"epoch": epoch + 1, "val_loss": avg_val_loss, "val_accuracy": avg_val_acc})
         scheduler.step(avg_val_loss)
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
-            wandb.run.summary["best_val_loss"] = best_val_loss
             torch.save(model.state_dict(), "best_model.pth")
-    wandb.save("best_model.pth", policy="end")
     return model

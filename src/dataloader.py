@@ -26,7 +26,7 @@ class ToTensor_trace:
 
 class Custom_Dataset(Dataset):
     def __init__(self, root='./', dataset="CHES_2025", leakage="HW", transform=None,
-                 poi_start=0, poi_end=7000, train_end=45000, test_end=10000):
+                 poi_start=0, poi_end=7000, train_end=500000, test_end=100000):
         (self.X_profiling, self.X_attack), (self.Y_profiling, self.Y_attack), \
         (self.plt_profiling, self.plt_attack), self.correct_key = load_ctf_2025(
             root + 'Dataset/CHES_2025/CHES_Challenge.h5', leakage_model=leakage, train_end=train_end,
