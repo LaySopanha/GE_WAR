@@ -107,76 +107,57 @@ def evaluate(
     plt_attack: np.ndarray,
     correct_key: int,
     nb_attacks: int = 100,
+    total_nb_traces_attacks: int = 2000,
     nb_traces_attacks: int = 2000,
-    batch_size: int = 1024
-) -> Tuple[np.ndarray, int]:
+    batch_size: int = 1024,
+    leakage_fn=None # This argument can be kept for flexibility
+) -> Tuple[np.ndarray, int, float]:
     """
     Performs a vectorized side-channel attack to compute Guessing Entropy and NTGE.
-
-    This function is a fast, memory-efficient, and mathematically equivalent
-    reimplementation of the original `evaluate` function. It adheres to the
-    CHES 2025 GE_WAR challenge rules.
-
-    Args:
-        device (torch.device): The device to run the model on (e.g., 'cuda' or 'cpu').
-        model (torch.nn.Module): The trained neural network model.
-        X_attack (np.ndarray): The attack traces.
-        plt_attack (np.ndarray): The plaintexts corresponding to the attack traces.
-        correct_key (int): The correct key byte (0-255).
-        nb_attacks (int): The number of attack experiments to average over (e.g., 100).
-        nb_traces_attacks (int): The number of traces to use for the GE curve.
-        batch_size (int): The batch size for the model's forward pass.
-
-    Returns:
-        Tuple[np.ndarray, int]: A tuple containing:
-            - GE_curve (np.ndarray): The final Guessing Entropy curve.
-            - NTGE (int): The calculated NTGE.
+    
+    MODIFIED to replicate the numerical behavior of the original competition function.
     """
     model.eval()
     
-    total_nb_traces = X_attack.shape[0]
-    if nb_traces_attacks > total_nb_traces:
-        raise ValueError(f"nb_traces_attacks ({nb_traces_attacks}) cannot be greater than the number of available attack traces ({total_nb_traces})")
+    if nb_traces_attacks > total_nb_traces_attacks:
+        raise ValueError(f"nb_traces_attacks ({nb_traces_attacks}) cannot be greater than the number of available attack traces ({total_nb_traces_attacks})")
 
-    # ---------- 1. Forward pass in batches for memory efficiency ---------- #
+    # ---------- 1. Forward pass to get PROBABILITIES (not log-probabilities) ---------- #
     ds = TensorDataset(torch.from_numpy(X_attack))
     loader = DataLoader(ds, batch_size=batch_size, shuffle=False)
 
-    logp_chunks = []
+    prob_chunks = []
     with torch.no_grad():
         for (batch,) in loader:
             batch = batch.to(device).unsqueeze(1).float()
-            # Use autocast for potential performance gain on compatible GPUs
             with torch.amp.autocast(device_type=device.type):
                 logits = model(batch)
-            logp_chunks.append(F.log_softmax(logits, dim=1).cpu())
             
-    # logp contains the log-probabilities for all attack traces
-    logp = torch.cat(logp_chunks).numpy()  # Shape: (total_nb_traces, C)
-    num_classes = logp.shape[1]            # Number of output classes (e.g., 9 for HW, 256 for ID)
+            ### CHANGE 1: Use softmax instead of log_softmax to get probabilities ###
+            prob_chunks.append(F.softmax(logits, dim=1).cpu())
+            
+    # `probs` contains the probabilities for all attack traces
+    ### CHANGE 2: The variable is now `probs`, not `logp` ###
+    probs = torch.cat(prob_chunks).numpy()  # Shape: (total_nb_traces, C)
+    num_classes = probs.shape[1]
 
     # ---------- 2. Prepare for parallel attacks ---------- #
-    # This matrix will hold the running sum of log-probabilities for each key guess
-    # across all attack experiments. Shape: (nb_attacks, 256)
     key_log_probs = np.zeros((nb_attacks, 256), dtype=np.float64)
     GE_curve = np.empty(nb_traces_attacks, dtype=np.float32)
-
-    # Pre-generate random permutations for all attacks to ensure reproducibility
-    # and to select traces randomly for each experiment.
-    shuffles = [np.random.permutation(total_nb_traces) for _ in range(nb_attacks)]
+    shuffles = [np.random.permutation(total_nb_traces_attacks) for _ in range(nb_attacks)]
 
     print(f"Starting {nb_attacks} attack simulations...")
     # ---------- 3. Vectorized rank computation over traces ---------- #
     for t in trange(nb_traces_attacks, desc="Calculating GE Curve"):
-        # For each trace `t`, get the corresponding shuffled trace index for each attack run
-        trace_indices = np.array([s[t] for s in shuffles])  # Shape: (nb_attacks,)
-
-        # Get the log-probabilities and plaintexts for the selected traces
-        logp_slice = logp[trace_indices]      # Shape: (nb_attacks, num_classes)
-        pt_slice = plt_attack[trace_indices]  # Shape: (nb_attacks,)
-
-        # Vectorized calculation of leakage values (z_i,k) for all key guesses
-        # The result 'indices' will have shape (nb_attacks, 256)
+        trace_indices = np.array([s[t] for s in shuffles])
+        
+        ### CHANGE 3: Get probabilities for the slice, then take the log ###
+        prob_slice = probs[trace_indices]      # Shape: (nb_attacks, num_classes)
+        logp_slice = np.log(prob_slice + 1e-40) # This mimics the original's `np.log(prediction + 1e-40)`
+        
+        pt_slice = plt_attack[trace_indices]
+        
+        # This part of the logic remains the same
         if num_classes == 256:  # Identity (ID) leakage model
             sbox_out = AES_Sbox[pt_slice[:, None] ^ np.arange(256, dtype=np.uint8)]
             indices = sbox_out
@@ -186,26 +167,17 @@ def evaluate(
         else:
             raise ValueError(f"Unsupported number of classes: {num_classes}. Only 9 (HW) and 256 (ID) are supported.")
         
-        # `take_along_axis` efficiently gathers the log-probabilities corresponding
-        # to the calculated leakage for each key guess.
         aligned_logp = np.take_along_axis(logp_slice, indices, axis=1)
-
-        # Update the total log-probability for each key guess in each attack
         key_log_probs += aligned_logp
 
-        # Calculate the rank of the correct key for all attacks simultaneously
         ranks = np.argsort(np.argsort(-key_log_probs, axis=1), axis=1)
-        
-        # The GE for trace `t` is the average rank of the correct key across all attacks
         GE_curve[t] = ranks[:, correct_key].mean()
 
-    # ---------- 4. Final Metrics ---------- #
+    # ---------- 4. Final Metrics (no changes here) ---------- #
     NTGE = NTGE_fn(GE_curve)
-    
     final_ge = GE_curve[-1]
     print("\n--- Evaluation Complete ---")
     print(f"Final GE: {final_ge:.2f}")
     print(f"NTGE: {NTGE}")
     
-    return GE_curve, NTGE
-
+    return GE_curve, NTGE, final_ge

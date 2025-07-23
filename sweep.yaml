@@ -1,11 +1,11 @@
 program: main_pytorch.py
 method: bayes
 command:
-  - C:\Users\user\Desktop\GE_War\CHES_PANHA\GE_WAR\newenv\Scripts\python.exe
+  - C:\Users\user\Desktop\GE_War\CHES_PANHA\GE_WAR\venv\Scripts\python.exe
   - ${program}
   - ${args}
 metric:
-  name: final_NTGE
+  name: combined_metric
   goal: minimize
 parameters:
   # === Model Architecture Parameters ===
@@ -28,12 +28,13 @@ parameters:
     
   # === Training and Regularization Parameters ===
   lr:
-    # +++ THIS IS THE FIX +++
     values: [0.005, 0.001, 0.0005, 0.0001]
   optimizer:
     values: ['Adam']
   batch_size:
     values: [128, 256]
+  dropout_rate:
+    values: [0.25, 0.5, 0.75]
   
   # === Augmentation Parameters ===
   max_shift:
@@ -42,10 +43,18 @@ parameters:
     distribution: uniform
     min: 0.01
     max: 0.08
+
+  # === Evaluation and Early Stopping ===
+  num_traces_attack:
+    value: 100000  
+  early_stopping_patience:
+    value: 10  
+  k_folds:
+    value: 5 
     
   # === Fixed Parameters ===
   epochs:
-    value: 20
+    value: 50  
   dataset:
     value: "CHES_2025"
   leakage:

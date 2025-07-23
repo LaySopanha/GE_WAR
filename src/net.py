@@ -71,12 +71,14 @@ class CNN(nn.Module):
         self.mlp_head = nn.Sequential()
         self.mlp_head.add_module("flatten", nn.Flatten())
         in_features = int(max(1, current_len) * in_channels)
-        num_dense_layers, neurons = search_space.get("layers", 1), search_space.get("neurons", 256)
+        num_dense_layers, neurons, dropout_rate = search_space.get("layers", 1), search_space.get("neurons", 256), search_space.get("dropout_rate", 0.5)
         for i in range(num_dense_layers):
             self.mlp_head.add_module(f"dense_{i}", nn.Linear(in_features, neurons))
+            self.mlp_head.add_module(f"bn_dense_{i}", nn.BatchNorm1d(neurons))
             activation = search_space.get("activation", "relu")
             if activation == 'selu': self.mlp_head.add_module(f"dense_act_{i}", nn.SELU())
             else: self.mlp_head.add_module(f"dense_act_{i}", nn.ReLU())
+            self.mlp_head.add_module(f"dropout_{i}", nn.Dropout(dropout_rate))
             in_features = neurons
         self.softmax_layer = nn.Linear(in_features, classes)
     def forward(self, x):

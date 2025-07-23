@@ -7,15 +7,28 @@ from sklearn.model_selection import train_test_split
 from src.utils import load_ctf_2025
 
 class DataAugmentation:
-    def __init__(self, max_shift=15, noise_level=0.05):
-        self.max_shift, self.noise_level = max_shift, noise_level
+    def __init__(self, max_shift=15, noise_level=0.05, flip_prob=0.5):
+        self.max_shift = max_shift
+        self.noise_level = noise_level
+        self.flip_prob = flip_prob
+
     def __call__(self, sample):
         trace = sample['trace']
+        
+        # Apply random horizontal flipping
+        if np.random.rand() < self.flip_prob:
+            trace = np.flip(trace, axis=0)
+
+        # Apply random shift
         if self.max_shift > 0 and np.random.rand() < 0.7:
             shift = np.random.randint(-self.max_shift, self.max_shift + 1)
             trace = np.roll(trace, shift)
+            
+        # Apply random noise
         if self.noise_level > 0 and np.random.rand() < 0.7:
-            trace += np.random.normal(0, self.noise_level, trace.shape).astype(trace.dtype)
+            noise = np.random.normal(0, self.noise_level, trace.shape).astype(trace.dtype)
+            trace += noise
+            
         sample['trace'] = trace
         return sample
 
