@@ -5,40 +5,48 @@ command:
   - ${program}
   - ${args}
 metric:
-  name: combined_metric
+  name: NTGE
   goal: minimize
 parameters:
   # === Model Architecture Parameters ===
-  conv_layers:
-    values: [2, 3, 4]
-  filters:
-    values: [8, 16, 32]
-  kernels:
-    values: [12, 24, 36]
+  model_type:
+    value: "cnn"  # Use the CNN defined in net.py
+  # initial_filters:
+  #   values: [16, 32]
+  dropout_rate:
+    distribution: uniform
+    min: 0.1
+    max: 0.5
   layers:
-    values: [1, 2]
+    values: [1, 2, 3]  # MLP layers after CNN
   neurons:
-    values: [128, 256, 512]
+    values: [128, 256, 512]  # Neurons per MLP layer
   activation:
-    values: ['relu', 'selu']
+    values: ["relu", "selu"]  # Add SELU activation
+  conv_layers:
+    values: [2, 3]  # Example: sweep over 2-4 conv layers
+  filters:
+    values: [8, 16]  # Number of filters per layer
+  kernels:
+    values: [12, 24, 36]     # Kernel sizes
+  pooling_types:
+    values: ["max_pool", "average_pool"]
   pooling_sizes:
-    values: [2, 3, 4]
-  num_poi:
-    values: [50, 100, 200]
-    
+    values: [2, 4]
+  padding:
+    values: [0, 1]
+  
   # === Training and Regularization Parameters ===
   lr:
-    values: [0.005, 0.001, 0.0005, 0.0001]
+    values: [0.001, 0.0005, 0.0001]
   optimizer:
     values: ['Adam']
   batch_size:
-    values: [128, 256]
-  dropout_rate:
-    values: [0.25, 0.5, 0.75]
+    values: [64, 128]
   
   # === Augmentation Parameters ===
   max_shift:
-    values: [10, 15, 20]
+    values: [10, 20]
   noise_level:
     distribution: uniform
     min: 0.01
@@ -47,27 +55,21 @@ parameters:
   # === Evaluation and Early Stopping ===
   num_traces_attack:
     value: 100000  
-  early_stopping_patience:
-    value: 10  
+  # early_stopping_patience:
+  #   value: 10  
   k_folds:
-    value: 5 
+    value: 3
     
   # === Fixed Parameters ===
   epochs:
-    value: 50  
+    value: 100  
   dataset:
     value: "CHES_2025"
   leakage:
     value: "ID"
+  num_poi:
+    values: [50, 100,200, 500, 750]
   poi_start:
-    value: 4119
-  poi_end:
-    value: 4519
-  model_type:
-    value: "cnn"
-  pooling_types:
-    value: "average_pool"
-  padding:
     value: 0
-  kernel_initializer:
-    value: "glorot_uniform"
+  poi_end:
+    value: 7000

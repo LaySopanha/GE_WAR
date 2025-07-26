@@ -125,3 +125,69 @@ class CNN_LSTM_SCA(nn.Module):
         # Classifier
         output = self.classifier(attended_lstm)
         return output
+
+class ResidualBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1):
+        super(ResidualBlock, self).__init__()
+        self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding=kernel_size//2, bias=False)
+        self.bn1 = nn.BatchNorm1d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv1d(out_channels, out_channels, kernel_size, 1, padding=kernel_size//2, bias=False)
+        self.bn2 = nn.BatchNorm1d(out_channels)
+        
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv1d(in_channels, out_channels, 1, stride, bias=False),
+                nn.BatchNorm1d(out_channels)
+            )
+
+    def forward(self, x):
+        out = self.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out += self.shortcut(x)
+        out = self.relu(out)
+        return out
+
+class ResNetSCA(nn.Module):
+    def __init__(self, config, num_sample_pts, classes):
+        super(ResNetSCA, self).__init__()
+        self.in_channels = config['initial_filters']
+        
+        self.conv1 = nn.Conv1d(1, self.in_channels, kernel_size=7, stride=2, padding=3, bias=False)
+        self.bn1 = nn.BatchNorm1d(self.in_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool1d(kernel_size=3, stride=2, padding=1)
+        
+        self.layers = nn.ModuleList()
+        for block_config in config['blocks']:
+            num_blocks, out_channels, stride = block_config
+            self.layers.append(self._make_layer(num_blocks, out_channels, stride))
+            
+        self.avgpool = nn.AdaptiveAvgPool1d(1)
+        
+        with torch.no_grad():
+            dummy_input = torch.randn(1, 1, num_sample_pts)
+            features = self.maxpool(self.relu(self.bn1(self.conv1(dummy_input))))
+            for layer in self.layers:
+                features = layer(features)
+            fc_input_size = features.size(1)
+
+        self.fc = nn.Linear(fc_input_size, classes)
+
+    def _make_layer(self, num_blocks, out_channels, stride):
+        strides = [stride] + [1]*(num_blocks-1)
+        layers = []
+        for stride in strides:
+            layers.append(ResidualBlock(self.in_channels, out_channels, stride=stride))
+            self.in_channels = out_channels
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        out = self.maxpool(self.relu(self.bn1(self.conv1(x))))
+        for layer in self.layers:
+            out = layer(out)
+        out = self.avgpool(out)
+        out = torch.flatten(out, 1)
+        out = self.fc(out)
+        return out

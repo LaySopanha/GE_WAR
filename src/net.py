@@ -45,9 +45,15 @@ class CNN(nn.Module):
     def __init__(self, search_space, num_sample_pts, classes):
         super(CNN, self).__init__()
         self.conv_base = nn.Sequential()
+        self.dropout_rate = search_space.get("dropout_rate", 0.0)
         kernels, strides, filters, pooling_types, pooling_sizes, pooling_strides, paddings = create_cnn_hp(search_space)
         in_channels, current_len = 1, num_sample_pts
+        if isinstance(pooling_types, str):
+            pooling_types = [pooling_types] * search_space["conv_layers"]
         for i in range(search_space["conv_layers"]):
+            if current_len <=1:
+                print(f"Stopped adding layers at layer {i} due to small feature map.")
+                break
             kernel_size = min(kernels[i], current_len) if current_len > 0 else 1
             stride = max(1, strides[i])
             padding = paddings[i]
@@ -67,18 +73,25 @@ class CNN(nn.Module):
                 current_len = math.floor(((current_len - pool_size) / pool_stride) + 1)
             self.conv_base.add_module(f"bn_{i}", nn.BatchNorm1d(filters[i]))
             in_channels = filters[i]
-            if current_len <= 0: break
+            if current_len <= 1:
+                print(f"Stopped after pooling at layer {i} due to small feature map.")
+                break
         self.mlp_head = nn.Sequential()
         self.mlp_head.add_module("flatten", nn.Flatten())
         in_features = int(max(1, current_len) * in_channels)
-        num_dense_layers, neurons, dropout_rate = search_space.get("layers", 1), search_space.get("neurons", 256), search_space.get("dropout_rate", 0.5)
+        num_dense_layers = search_space.get("layers", 1)
+        neurons = search_space.get("neurons", 256)
         for i in range(num_dense_layers):
             self.mlp_head.add_module(f"dense_{i}", nn.Linear(in_features, neurons))
             self.mlp_head.add_module(f"bn_dense_{i}", nn.BatchNorm1d(neurons))
+            
             activation = search_space.get("activation", "relu")
-            if activation == 'selu': self.mlp_head.add_module(f"dense_act_{i}", nn.SELU())
-            else: self.mlp_head.add_module(f"dense_act_{i}", nn.ReLU())
-            self.mlp_head.add_module(f"dropout_{i}", nn.Dropout(dropout_rate))
+            if activation == 'selu':
+                self.mlp_head.add_module(f"dense_act_{i}", nn.SELU())
+            else:
+                self.mlp_head.add_module(f"dense_act_{i}", nn.ReLU())
+            if self.dropout_rate > 0:
+                self.mlp_head.add_module(f"dropout_{i}", nn.Dropout(self.dropout_rate))
             in_features = neurons
         self.softmax_layer = nn.Linear(in_features, classes)
     def forward(self, x):
@@ -134,7 +147,7 @@ def create_cnn_hp(search_space):
         pooling_sizes.append(pool_size)
         pooling_strides.append(pool_size)
         pooling_types.append(pooling_type)
-    return kernels, strides, filters, pooling_type, pooling_sizes, pooling_strides, paddings
+    return kernels, strides, filters, pooling_types, pooling_sizes, pooling_strides, paddings
 
 
 

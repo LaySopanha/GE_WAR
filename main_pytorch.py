@@ -2,12 +2,13 @@
 import os, random, numpy as np, torch, wandb
 from copy import deepcopy
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
 from torchvision import transforms
 from torch.utils.data import DataLoader, Subset
 from src.dataloader import Custom_Dataset, DataAugmentation, ToTensor_trace
 from src.net import CNN, weight_init
-from src.trainer import training_loop
+# from src.advanced_net import ResNetSCA
+from src.trainer import training_loop, attack_driven_training_loop
 from src.utils import evaluate, AES_Sbox, calculate_snr
 
 def run_experiment():
@@ -33,15 +34,15 @@ def run_experiment():
     # Randomly select a subset of the profiling data for hyperparameter tuning
     profiling_indices = np.random.choice(len(dataset_obj.X_profiling), 200000, replace=False)
     dataset_obj.X_profiling = dataset_obj.X_profiling[profiling_indices]
-    dataset_obj.Y_profiling = dataset_obj.Y_profiling[profiling_indices]
+    dataset_obj.Y_profiling = np.array(dataset_obj.Y_profiling)[profiling_indices]
 
     # K-Fold Cross-Validation
-    kf = KFold(n_splits=config.k_folds, shuffle=True, random_state=SEED)
+    kf = StratifiedKFold(n_splits=config.k_folds, shuffle=True, random_state=SEED)
     fold_results_ntge = []
     fold_results_ge = []
     fold_results_final_ge = []
 
-    for fold, (train_index, val_index) in enumerate(kf.split(dataset_obj.X_profiling)):
+    for fold, (train_index, val_index) in enumerate(kf.split(dataset_obj.X_profiling, dataset_obj.Y_profiling)):
         print(f"--- Fold {fold+1}/{config.k_folds} ---")
 
         # Create a scaler for this fold
@@ -81,22 +82,41 @@ def run_experiment():
         poi_width = config.num_poi
         classes = 256 if config.leakage == 'ID' else 9
         search_space = {k: v for k, v in config.items()}
-        model = CNN(search_space, poi_width, classes).to(device)
-        weight_init(model, search_space.get("kernel_initializer", "glorot_uniform"))
-
+        if config.model_type == 'cnn':
+            model = CNN(search_space, poi_width, classes).to(device)
+            weight_init(model, search_space.get("kernel_initializer", "glorot_uniform"))
+            print(f"Model has {sum(p.numel() for p in model.parameters() if p.requires_grad):,} parameters")
+        # elif config.model_type == 'resnet':
+            # model = ResNetSCA(search_space, poi_width, classes).to(device)
+        else:
+            raise ValueError(f"Unknown model type: {config.model_type}")
+        
+        def leakage_fn(p, k): 
+            return AES_Sbox[k ^ int(p)] if config.leakage == 'ID' else [bin(x).count("1") for x in range(256)][AES_Sbox[k ^ int(p)]]
+        
         # Train the model
-        model = training_loop(config, model, train_loader, val_loader, device, run)
-        model.load_state_dict(torch.load("best_model.pth"))
+        # model = training_loop(config, model, train_loader, val_loader, device, run)
+        X_attack_fold = scaler.transform(fold_dataset_obj.X_attack)
+        model = attack_driven_training_loop(
+            config, model, train_loader, device, run,
+            X_attack_fold, fold_dataset_obj.plt_attack, 
+            fold_dataset_obj.correct_key, leakage_fn
+        )
+        # model.load_state_dict(torch.load("best_model.pth"))
+        model_path = f"best_model_fold_{fold}.pth"
+        if os.path.exists(model_path):
+            try:
+                model.load_state_dict(torch.load(f"best_model_fold_{fold}.pth"))
+                print(f"Loaded best model for fold {fold+1}")
+            except Exception as e:
+                print(f"Could not load model, using last epoch model instead: {e}")
         
         # Save the config as a .npy file
         np.save("best_model_config.npy", config)
 
         # Evaluate the model on the attack set
-        attack_scaler = StandardScaler()
-        X_attack_scaled = attack_scaler.fit_transform(fold_dataset_obj.X_attack)
-        
-        def leakage_fn(p, k): return AES_Sbox[k ^ int(p)] if config.leakage == 'ID' else [bin(x).count("1") for x in range(256)][AES_Sbox[k ^ int(p)]]
-        
+        X_attack_scaled = scaler.transform(fold_dataset_obj.X_attack)
+    
         GE, NTGE, final_ge = evaluate(device, model, X_attack_scaled, fold_dataset_obj.plt_attack, fold_dataset_obj.correct_key,
                                       leakage_fn=leakage_fn, nb_attacks=100,
                                       total_nb_traces_attacks=config.num_traces_attack,
@@ -116,13 +136,9 @@ def run_experiment():
     avg_final_ge = np.mean(fold_results_final_ge)
     avg_ge = np.mean(fold_results_ge, axis=0)
     
-    # Combined metric for sweep optimization
-    combined_metric = avg_final_ge + avg_ntge
-
     wandb.log({
         "final_NTGE": avg_ntge,
-        "final_GE_at_max_traces": avg_final_ge,
-        "combined_metric": combined_metric
+        "final_GE_at_max_traces": avg_final_ge
     })
 
     if avg_ge is not None and len(avg_ge) > 0:
