@@ -1,75 +1,83 @@
 program: main_pytorch.py
 method: bayes
 command:
-  - C:\Users\user\Desktop\GE_War\CHES_PANHA\GE_WAR\venv\Scripts\python.exe
+  - C:\Users\user\Desktop\GE_War\CHES_PANHA\GE_WAR\venv_new\Scripts\python.exe
   - ${program}
   - ${args}
 metric:
-  name: NTGE
+  name: composite_score
   goal: minimize
 parameters:
-  # === Model Architecture Parameters ===
+
+  # === Model Architecture - PROVEN SUCCESSFUL PATTERNS ===
   model_type:
-    value: "cnn"  # Use the CNN defined in net.py
-  # initial_filters:
-  #   values: [16, 32]
+    value: "cnn" 
   dropout_rate:
     distribution: uniform
-    min: 0.1
-    max: 0.5
+    min: 0.25
+    max: 0.28  # NARROW AROUND PROVEN 0.267!
   layers:
-    values: [1, 2, 3]  # MLP layers after CNN
+    values: [2]  # LOCK TO PROVEN VALUE
   neurons:
-    values: [128, 256, 512]  # Neurons per MLP layer
+    values: [512]  # LOCK TO PROVEN 512!
   activation:
-    values: ["relu", "selu"]  # Add SELU activation
+    values: ["relu"]  
   conv_layers:
-    values: [2, 3]  # Example: sweep over 2-4 conv layers
+    values: [4]  # LOCK TO PROVEN 4 LAYERS!
   filters:
-    values: [8, 16]  # Number of filters per layer
+    values: [32]  # LOCK TO PROVEN 32!
   kernels:
-    values: [12, 24, 36]     # Kernel sizes
+    values: [24]  # LOCK TO PROVEN 24!
   pooling_types:
-    values: ["max_pool", "average_pool"]
+    values: ["max_pool"]  # Best performing in logs
   pooling_sizes:
-    values: [2, 4]
+    values: [2]  # PROVEN OPTIMAL
   padding:
-    values: [0, 1]
+    values: [0]  # PROVEN OPTIMAL
+  # === Training Parameters - LEARNED FROM ALL EXPERIMENTS ===
+  early_stopping_patience:
+    value: 25  # Proven convergence time from logs
+  min_epochs:
+    value: 80  # Ensure adequate training for 350k
+  attack_eval_frequency:
+    value: 15   # Balanced evaluation frequency
   
   # === Training and Regularization Parameters ===
   lr:
-    values: [0.001, 0.0005, 0.0001]
+    values: [0.0001, 0.00009, 0.00011]  # MICRO-VARIATIONS AROUND PROVEN!
   optimizer:
     values: ['Adam']
   batch_size:
-    values: [64, 128]
+    values: [32]  # LOCK TO PROVEN VALUE - avoid variability
   
   # === Augmentation Parameters ===
   max_shift:
-    values: [10, 20]
+    values: [20]  # PROVEN OPTIMAL
   noise_level:
     distribution: uniform
-    min: 0.01
-    max: 0.08
+    min: 0.020   # VERY CLOSE TO PROVEN 0.022!
+    max: 0.025   # TIGHT CEILING FOR PRECISION
 
   # === Evaluation and Early Stopping ===
   num_traces_attack:
     value: 100000  
-  # early_stopping_patience:
-  #   value: 10  
   k_folds:
-    value: 3
+    value: 2
     
-  # === Fixed Parameters ===
+  # === Fixed Parameters - OPTIMIZED FROM ALL LEARNINGS ===
   epochs:
-    value: 100  
+    value: 250  
   dataset:
     value: "CHES_2025"
   leakage:
-    value: "ID"
+    value: "ID"  # Proven superior to HW in all tests
   num_poi:
-    values: [50, 100,200, 500, 750]
+    values: [250]  # LOCK TO PROVEN OPTIMAL!
   poi_start:
     value: 0
   poi_end:
     value: 7000
+  
+  # === Dataset Size - MATCH CHALLENGE EVALUATION ===
+  train_end:
+    value: 350000  

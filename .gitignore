@@ -1,2 +1,41 @@
-wandb
-newenv
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment & Logs  
+venv/
+newenv/
+wandb/
+*.log
+
+
+# Dataset & Data
+dataset/
+data/
+*.db
+*.sqlite
+
+# Compressed Files
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# Configuration files that may contain sensitive info
+*.json
+!requirements.txt
+!requirements_submission.txt  # Keep submission requirements
+
+# Temporary Files
+*.bak
+*.tmp
+*.swp
+*.swo
+.DS_Store
+
+# Keep sweep.yaml for your friend!
+!sweep.yaml

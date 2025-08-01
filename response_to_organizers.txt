@@ -1,0 +1,25 @@
+Subject: Re: Updated Scores and Profiling Data Limitation
+
+Dear CHES Challenge Organizing Team,
+
+Thank you for the updated evaluation and clarification on the profiling data limitation.
+
+**Response to 350K Profiling Data Limit:**
+We accept the 350K profiling data limitation and would like to retrain our model to optimize for this constraint. Our analysis shows that the current model overfitted to the public dataset, resulting in poor generalization to private datasets.
+
+**Our Retraining Plan:**
+1. **Enhanced Generalization:** Implement advanced data augmentation and regularization techniques specifically designed for private dataset robustness
+2. **Memory Optimization:** Utilize the full 350K profiling traces efficiently with our advanced architecture
+3. **Cross-Dataset Validation:** Employ techniques to improve generalization across different measurement conditions
+
+**Expected Improvements:**
+- Maintain strong public dataset performance (GE=0, NTGE <50k)  
+- Significantly improve private dataset generalization (target GE=0 across all datasets)
+- Better memory efficiency within the 350K constraint
+
+We will submit our retrained model as submission #1 within the next few days.
+
+Thank you for ensuring fair evaluation for all participants.
+
+Best regards,
+[Your Team Name]
