@@ -34,17 +34,19 @@ parameters:
     values: [2]  # PROVEN OPTIMAL
   padding:
     values: [0]  # PROVEN OPTIMAL
-  # === Training Parameters - LEARNED FROM ALL EXPERIMENTS ===
+  # === Training Parameters - OPTIMIZED FOR LOWER NTGE ===
   early_stopping_patience:
-    value: 25  # Proven convergence time from logs
+    value: 20  # Allow more training for better NTGE
   min_epochs:
-    value: 80  # Ensure adequate training for 350k
+    value: 50  # Ensure adequate training
   attack_eval_frequency:
-    value: 15   # Balanced evaluation frequency
+    value: 20   # More frequent evaluation for precision
   
   # === Training and Regularization Parameters ===
   lr:
-    values: [0.0001, 0.00009, 0.00011]  # MICRO-VARIATIONS AROUND PROVEN!
+    distribution: uniform
+    min: 0.00008   # Slightly lower for better convergence
+    max: 0.00012   # Wider range around proven values
   optimizer:
     values: ['Adam']
   batch_size:
@@ -55,14 +57,14 @@ parameters:
     values: [20]  # PROVEN OPTIMAL
   noise_level:
     distribution: uniform
-    min: 0.020   # VERY CLOSE TO PROVEN 0.022!
-    max: 0.025   # TIGHT CEILING FOR PRECISION
+    min: 0.020   # Back to proven optimal range
+    max: 0.024   # Narrow around best performers
 
   # === Evaluation and Early Stopping ===
   num_traces_attack:
     value: 100000  
   k_folds:
-    value: 2
+    value: 1  # Single split - faster iteration with 350K samples
     
   # === Fixed Parameters - OPTIMIZED FROM ALL LEARNINGS ===
   epochs:

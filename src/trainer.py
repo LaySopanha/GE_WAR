@@ -157,15 +157,14 @@ def attack_driven_training_loop(config, model, train_loader, device, run, X_atta
             print(f"New best model saved with Final GE: {best_final_ge:.2f} and NTGE: {best_ntge}")
             epochs_no_improve = 0
             
-            # Early success stopping - if we achieve GE=0 after min_epochs
-            if final_ge == 0 and epoch >= min_epochs:
-                print(f"Achieved GE=0 at epoch {epoch+1}, stopping training early")
-                break
+            # Don't stop early when GE=0 - continue to improve NTGE
+            # Only stop if we haven't improved for patience epochs
         else:
             epochs_no_improve += 1
 
+        # Early stopping based on patience, not just achieving GE=0
         if epoch >= min_epochs and epochs_no_improve >= patience:
-            print(f"Early stopping triggered after {epoch+1} epochs")
+            print(f"Early stopping triggered after {epoch+1} epochs (no improvement for {patience} epochs)")
             break
             
         scheduler.step()

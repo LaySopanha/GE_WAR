@@ -3,6 +3,7 @@ import random
 from copy import deepcopy
 import numpy as np
 import torch
+from sklearn.preprocessing import StandardScaler
 
 from torchvision.transforms import transforms
 from src.dataloader import ToTensor_trace, Custom_Dataset
@@ -55,6 +56,8 @@ if __name__=="__main__":
     Y_attack = dataloadertest.Y_attack
     plt_attack = dataloadertest.plt_attack
     num_sample_pts = X_attack.shape[-1]
+    print(f"Original X_attack shape: {X_attack.shape}")
+    print(f"Number of sample points: {num_sample_pts}")
     #########################################################################
 
 
@@ -75,9 +78,39 @@ if __name__=="__main__":
         
         # Load configuration
         config = np.load(config_file, allow_pickle=True).item()
+        metadata_file = best_model_file.replace('ge0_model_', 'ge0_metadata_').replace('.pth', '.json')
+        
+        print(f"Model config: num_poi={config.get('num_poi', 250)}")
+        
+        # Load the exact POI indices used during training for best performance
+        import json
+        with open(metadata_file, 'r') as f:
+            metadata = json.load(f)
+        
+        if 'poi_indices' in metadata:
+            poi_indices = np.array(metadata['poi_indices'])
+            print(f"Using saved POI indices: {len(poi_indices)} points")
+            print(f"POI indices range: {poi_indices[0]} to {poi_indices[-1]}")
+            X_attack = X_attack[:, poi_indices]
+            print(f"After POI selection: {X_attack.shape}")
+        else:
+            print("⚠️ No saved POI indices found, using SNR-based selection")
+            # Fallback to SNR-based selection
+            num_poi = config.get('num_poi', 250)
+            from src.utils import calculate_snr
+            snr_values = calculate_snr(X_attack, Y_attack)
+            poi_indices = np.argsort(snr_values)[-num_poi:]
+            X_attack = X_attack[:, poi_indices]
+            print(f"After SNR POI selection: {X_attack.shape}")
+        
+        # Apply standard scaling to match training preprocessing
+        print("Applying StandardScaler to match training preprocessing...")
+        scaler = StandardScaler()
+        X_attack = scaler.fit_transform(X_attack)
+        print(f"After scaling: {X_attack.shape}")
         
         # Create model architecture to match our training
-        poi_width = config.get('num_poi', 250)  # Default POI if not in config
+        poi_width = X_attack.shape[-1]  # Use actual POI width after selection
         classes = 256  # ID leakage
         
         model = CNN(config, poi_width, classes).to(device)
@@ -112,5 +145,10 @@ if __name__=="__main__":
 
 
     ####All model will be evaluated based on this function, if it does not adhere to the following, it will be eliminated. ##################
-    GE, NTGE = evaluate(device, model, X_attack, plt_attack, correct_key, leakage_fn=leakage_fn, nb_attacks=100,
+    GE, NTGE, final_ge = evaluate(device, model, X_attack, plt_attack, correct_key, leakage_fn=leakage_fn, nb_attacks=100,
                         total_nb_traces_attacks=100000, nb_traces_attacks=100000)
+    
+    print(f"--- Final Results ---")
+    print(f"GE: {GE}")
+    print(f"NTGE: {NTGE}")
+    print(f"Final GE: {final_ge}")

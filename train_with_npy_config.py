@@ -1,4 +1,7 @@
-# main_pytorch.py
+#!/usr/bin/env python3
+"""
+Train model using NPY config file
+"""
 import os, random, numpy as np, torch, wandb
 from copy import deepcopy
 from sklearn.preprocessing import StandardScaler
@@ -7,15 +10,30 @@ from torchvision import transforms
 from torch.utils.data import DataLoader, Subset
 from src.dataloader import Custom_Dataset, DataAugmentation, ToTensor_trace
 from src.net import CNN, weight_init
-# from src.advanced_net import ResNetSCA
 from src.trainer import training_loop, attack_driven_training_loop
 from src.utils import evaluate, AES_Sbox, calculate_snr
 
-def run_experiment():
-    run = wandb.init()
+def load_npy_config(config_file):
+    """Load config from NPY file"""
+    config_dict = np.load(config_file, allow_pickle=True).item()
+    print(f"📋 Loaded config from {config_file}:")
+    for key, value in config_dict.items():
+        print(f"  {key}: {value}")
+    return config_dict
+
+def run_experiment_with_npy_config(config_file):
+    """Run experiment using NPY config file"""
+    
+    # Load config from NPY file
+    config_dict = load_npy_config(config_file)
+    
+    # Initialize wandb with the loaded config
+    run = wandb.init(config=config_dict, project="ge-war-ches2025")
     config = wandb.config
+    
     SEED = 42; random.seed(SEED); np.random.seed(SEED); torch.manual_seed(SEED)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    print(f"🚀 Using device: {device}")
 
     # Load full traces first to compute SNR
     train_end = getattr(config, 'train_end', 500000)  # Use config value or default to 500k
@@ -27,16 +45,31 @@ def run_experiment():
 
     # Calculate SNR on the full profiling dataset for accuracy
     snr = calculate_snr(full_dataset_obj.X_profiling, full_dataset_obj.Y_profiling)
-    top_k_indices = np.argsort(snr)[-config.num_poi:]
+    
+    # GENERALIZATION IMPROVEMENT 1: Slightly more POIs for better coverage
+    # But not too aggressive - your 100 POI approach already works!
+    num_poi_enhanced = min(150, int(config.num_poi * 1.2))  # Only 20% more POIs
+    top_k_indices = np.argsort(snr)[-num_poi_enhanced:]
+    
+    print(f"📍 Enhanced POI selection: Using {num_poi_enhanced} POIs (vs {config.num_poi} original)")
+    print(f"📊 SNR range: {snr[top_k_indices].min():.3f} - {snr[top_k_indices].max():.3f}")
 
     # Create a new dataset object with only the selected POIs
     dataset_obj = deepcopy(full_dataset_obj)
     dataset_obj.X_profiling = dataset_obj.X_profiling[:, top_k_indices]
     dataset_obj.X_attack = dataset_obj.X_attack[:, top_k_indices]
+    
+    # GENERALIZATION IMPROVEMENT 2: Save POI indices for consistent evaluation
+    poi_metadata = {
+        'poi_indices': top_k_indices.tolist(),
+        'snr_values': snr[top_k_indices].tolist(),
+        'num_poi_used': num_poi_enhanced,
+        'original_poi_config': config.num_poi
+    }
+    np.save('poi_selection_metadata.npy', poi_metadata)
 
     # Use the full profiling dataset (500k) instead of random subset
     print(f"📈 Using full {len(dataset_obj.X_profiling)} profiling traces (vs 200k subset)")
-    # No more subset selection - use all 500k traces!
 
     # Handle single split vs k-fold cross-validation
     if config.k_folds == 1:
@@ -100,15 +133,21 @@ def run_experiment():
         val_loader = DataLoader(val_dataset, batch_size=config.batch_size, shuffle=False, num_workers=0)
 
         # Initialize model for this fold
-        poi_width = config.num_poi
+        poi_width = num_poi_enhanced  # Use enhanced POI count
         classes = 256 if config.leakage == 'ID' else 9
         search_space = {k: v for k, v in config.items()}
+        
+        # GENERALIZATION IMPROVEMENT 3: Conservative regularization enhancement
+        # Keep original dropout but add small weight decay
+        original_dropout = search_space.get('dropout_rate', 0.1)
+        search_space['dropout_rate'] = max(original_dropout, 0.17)  # Only slightly higher
+        search_space['weight_decay'] = search_space.get('weight_decay', 1e-5)  # Small L2 reg
+        
         if config.model_type == 'cnn':
             model = CNN(search_space, poi_width, classes).to(device)
             weight_init(model, search_space.get("kernel_initializer", "glorot_uniform"))
             print(f"Model has {sum(p.numel() for p in model.parameters() if p.requires_grad):,} parameters")
-        # elif config.model_type == 'resnet':
-            # model = ResNetSCA(search_space, poi_width, classes).to(device)
+            print(f"🛡️ Enhanced regularization: dropout={search_space['dropout_rate']:.3f}")
         else:
             raise ValueError(f"Unknown model type: {config.model_type}")
         
@@ -116,14 +155,14 @@ def run_experiment():
             return AES_Sbox[k ^ int(p)] if config.leakage == 'ID' else [bin(x).count("1") for x in range(256)][AES_Sbox[k ^ int(p)]]
         
         # Train the model
-        # model = training_loop(config, model, train_loader, val_loader, device, run)
         X_attack_fold = scaler.transform(fold_dataset_obj.X_attack)
         model = attack_driven_training_loop(
             config, model, train_loader, device, run,
             X_attack_fold, fold_dataset_obj.plt_attack, 
             fold_dataset_obj.correct_key, leakage_fn
         )
-        # model.load_state_dict(torch.load("best_model.pth"))
+        
+        # Load best model if available
         model_path = f"best_model_fold_{fold}.pth"
         if os.path.exists(model_path):
             try:
@@ -133,20 +172,51 @@ def run_experiment():
                 print(f"Could not load model, using last epoch model instead: {e}")
         
         # Save the config as a .npy file
-        np.save("best_model_config.npy", config)
+        np.save("best_model_config.npy", dict(config))
 
-        # Evaluate the model on the attack set
+        # GENERALIZATION IMPROVEMENT 4: Multiple evaluation strategies
         X_attack_scaled = scaler.transform(fold_dataset_obj.X_attack)
-    
+        
+        # Standard evaluation
         GE, NTGE, final_ge = evaluate(device, model, X_attack_scaled, fold_dataset_obj.plt_attack, fold_dataset_obj.correct_key,
                                       leakage_fn=leakage_fn, nb_attacks=100,
                                       total_nb_traces_attacks=config.num_traces_attack,
                                       nb_traces_attacks=config.num_traces_attack)
         
-        # Save model and metadata if it achieves GE=0
-        if final_ge == 0:
+        # GENERALIZATION IMPROVEMENT 5: Noise robustness test
+        # Add small amount of gaussian noise to test robustness
+        noise_levels = [0.01, 0.02, 0.05]
+        robust_scores = []
+        
+        for noise_level in noise_levels:
+            X_attack_noisy = X_attack_scaled + np.random.normal(0, noise_level, X_attack_scaled.shape)
+            _, ntge_noisy, ge_noisy = evaluate(device, model, X_attack_noisy, fold_dataset_obj.plt_attack, fold_dataset_obj.correct_key,
+                                             leakage_fn=leakage_fn, nb_attacks=50,  # Fewer attacks for speed
+                                             total_nb_traces_attacks=config.num_traces_attack,
+                                             nb_traces_attacks=config.num_traces_attack)
+            robust_scores.append(ge_noisy)
+            print(f"🔊 Noise robustness (σ={noise_level}): GE={ge_noisy}")
+        
+        # Calculate robustness score (lower is better)
+        avg_robust_ge = np.mean(robust_scores)
+        robustness_penalty = avg_robust_ge - final_ge
+        print(f"🎯 Robustness penalty: +{robustness_penalty:.1f} GE under noise")
+        
+        # GENERALIZATION IMPROVEMENT 6: Save ALL GE=0 models (like main_pytorch.py)
+        # But also test and log robustness for analysis
+        generalization_score = final_ge + 0.1 * robustness_penalty  # For logging only
+        
+        if final_ge == 0:  # Save ANY GE=0 model (like original main)
             run_id = wandb.run.id if wandb.run else "no_wandb"
-            model_filename = f"ge0_model_run_{run_id}_fold_{fold}_ntge_{NTGE}.pth"
+            
+            # Create both robust and standard filenames for compatibility
+            if robustness_penalty < 5:  # Mark truly robust ones
+                model_filename = f"ge0_robust_model_run_{run_id}_fold_{fold}_ntge_{NTGE}_robust_{robustness_penalty:.1f}.pth"
+                print(f"🎯 EXCELLENT: GE=0 with good robustness (penalty={robustness_penalty:.1f})")
+            else:
+                model_filename = f"ge0_model_run_{run_id}_fold_{fold}_ntge_{NTGE}_robust_{robustness_penalty:.1f}.pth"
+                print(f"⚠️ ACCEPTABLE: GE=0 but higher noise sensitivity (penalty={robustness_penalty:.1f})")
+            
             config_filename = f"ge0_config_run_{run_id}_fold_{fold}_ntge_{NTGE}.npy"
             metadata_filename = f"ge0_metadata_run_{run_id}_fold_{fold}_ntge_{NTGE}.json"
             
@@ -156,16 +226,6 @@ def run_experiment():
                 print(f"✅ Successfully saved model: {model_filename}")
             except Exception as e:
                 print(f"❌ Error saving model: {e}")
-                print(f"Error details: {type(e).__name__}: {str(e)}")
-                # Try pickle fallback
-                import pickle
-                fallback_path = model_filename.replace('.pth', '_pickle.pkl')
-                try:
-                    with open(fallback_path, 'wb') as f:
-                        pickle.dump(model.state_dict(), f)
-                    print(f"✅ Pickle fallback successful: {fallback_path}")
-                except Exception as e2:
-                    print(f"❌ Pickle fallback failed: {e2}")
             
             try:
                 # Save the configuration - convert wandb config to regular dict
@@ -198,7 +258,8 @@ def run_experiment():
                 'fold': int(fold),
                 'final_GE': convert_to_json_serializable(final_ge),
                 'NTGE': convert_to_json_serializable(NTGE),
-                'num_poi': convert_to_json_serializable(config.num_poi),
+                'num_poi': convert_to_json_serializable(num_poi_enhanced),
+                'original_poi_config': convert_to_json_serializable(config.num_poi),
                 'train_traces': convert_to_json_serializable(train_end),
                 'leakage': str(config.leakage),
                 'dataset': str(config.dataset),
@@ -206,7 +267,10 @@ def run_experiment():
                 'batch_size': convert_to_json_serializable(config.batch_size),
                 'learning_rate': convert_to_json_serializable(getattr(config, 'lr', getattr(config, 'learning_rate', 0.0))),
                 'poi_indices': convert_to_json_serializable(top_k_indices),
-                'model_parameters': int(sum(p.numel() for p in model.parameters() if p.requires_grad))
+                'model_parameters': int(sum(p.numel() for p in model.parameters() if p.requires_grad)),
+                'robustness_penalty': convert_to_json_serializable(robustness_penalty),
+                'noise_robustness_scores': convert_to_json_serializable(robust_scores),
+                'generalization_score': convert_to_json_serializable(generalization_score)
             }
             
             try:
@@ -215,34 +279,40 @@ def run_experiment():
                 print(f"✅ Successfully saved metadata: {metadata_filename}")
             except Exception as e:
                 print(f"❌ Error saving metadata: {e}")
-                print(f"Metadata content: {metadata}")
                 # Try to save without problematic fields
                 safe_metadata = {
                     'run_id': str(run_id),
                     'fold': int(fold),
                     'final_GE': 0.0,
                     'NTGE': int(NTGE) if isinstance(NTGE, (int, np.integer)) else int(float(NTGE)),
-                    'num_poi': int(config.num_poi),
+                    'num_poi': int(num_poi_enhanced),
+                    'original_poi_config': int(config.num_poi),
                     'train_traces': int(train_end),
                     'leakage': str(config.leakage),
-                    'dataset': str(config.dataset)
+                    'dataset': str(config.dataset),
+                    'robustness_penalty': float(robustness_penalty)
                 }
                 with open(metadata_filename.replace('.json', '_safe.json'), 'w') as f:
                     json.dump(safe_metadata, f, indent=2)
                 print(f"✅ Saved safe metadata: {metadata_filename.replace('.json', '_safe.json')}")
             
-            print(f"🎯 SAVED GE=0 MODEL: {model_filename} (NTGE={NTGE})")
+            print(f"🎯 SAVED GE=0 MODEL: {model_filename} (NTGE={NTGE}, Robustness={robustness_penalty:.1f})")
             print(f"📁 Config: {config_filename}")
             print(f"📋 Metadata: {metadata_filename}")
+        else:
+            print(f"❌ Model did not achieve GE=0 (final_ge={final_ge})")
         
         fold_results_ntge.append(NTGE)
         fold_results_ge.append(GE)
         fold_results_final_ge.append(final_ge)
-
+        
+        # Log additional metrics to wandb
         if run:
             run.log({
                 f"fold_{fold+1}_NTGE": NTGE,
-                f"fold_{fold+1}_final_GE": final_ge
+                f"fold_{fold+1}_final_GE": final_ge,
+                f"fold_{fold+1}_robustness_penalty": robustness_penalty,
+                f"fold_{fold+1}_generalization_score": generalization_score
             })
 
     # Log the average metrics across all folds
@@ -258,7 +328,6 @@ def run_experiment():
         best_ntge = min([fold_results_ntge[i] for i in ge0_indices])
         best_fold_index = ge0_indices[np.argmin([fold_results_ntge[i] for i in ge0_indices])]
         
-        # Add these debug prints
         print(f"DEBUG: Found {len(ge0_indices)} folds with GE=0")
         print(f"DEBUG: Fold indices with GE=0: {ge0_indices}")
         print(f"DEBUG: NTGE values for these folds: {[fold_results_ntge[i] for i in ge0_indices]}")
@@ -269,7 +338,6 @@ def run_experiment():
         best_fold_index = fold_results_final_ge.index(best_final_ge)
         best_ntge = fold_results_ntge[best_fold_index]
         
-        # Add these debug prints
         print(f"DEBUG: No folds achieved GE=0")
         print(f"DEBUG: All fold GE values: {fold_results_final_ge}")
         print(f"DEBUG: Selected fold {best_fold_index} with GE={best_final_ge}")
@@ -316,4 +384,5 @@ def run_experiment():
     wandb.finish()
 
 if __name__ == "__main__":
-    run_experiment()
+    config_file = "config-ntge_86825.npy"
+    run_experiment_with_npy_config(config_file)

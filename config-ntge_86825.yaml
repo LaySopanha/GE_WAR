@@ -1,0 +1,140 @@
+_wandb:
+    value:
+        cli_version: 0.21.0
+        e:
+            9cx43cyua9sqg0uh1eomhwi9e3cjmepf:
+                args:
+                    - --activation=selu
+                    - --attack_eval_frequency=5
+                    - --batch_size=64
+                    - --conv_layers=2
+                    - --dataset=CHES_2025
+                    - --dropout_rate=0.1659671608310503
+                    - --early_stopping_patience=10
+                    - --epochs=100
+                    - --filters=16
+                    - --k_folds=2
+                    - --kernels=36
+                    - --layers=3
+                    - --leakage=ID
+                    - --lr=0.0005
+                    - --max_shift=10
+                    - --min_epochs=30
+                    - --model_type=cnn
+                    - --neurons=128
+                    - --noise_level=0.04286598024507582
+                    - --num_poi=100
+                    - --num_traces_attack=100000
+                    - --optimizer=Adam
+                    - --padding=1
+                    - --poi_end=7000
+                    - --poi_start=0
+                    - --pooling_sizes=4
+                    - --pooling_types=max_pool
+                codePath: main_pytorch.py
+                codePathLocal: main_pytorch.py
+                cpu_count: 24
+                cpu_count_logical: 32
+                cudaVersion: "12.6"
+                disk:
+                    /:
+                        total: "999387295744"
+                        used: "233612001280"
+                email: panhalay69420@gmail.com
+                executable: C:\Users\user\Desktop\GE_War\CHES_PANHA\GE_WAR\venv\Scripts\python.exe
+                git:
+                    commit: a970de909676df77f87e233b38a2189da4b5cc93
+                    remote: https://github.com/LaySopanha/GE_WAR.git
+                gpu: NVIDIA GeForce RTX 4060
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 3072
+                      memoryTotal: "8585740288"
+                      name: NVIDIA GeForce RTX 4060
+                      uuid: GPU-bafaf09c-ec81-2d5f-bf09-30ffa3640b46
+                host: DESKTOP-0OLFNKN
+                memory:
+                    total: "34159616000"
+                os: Windows-11-10.0.22621-SP0
+                program: C:\Users\user\Desktop\GE_War\CHES_PANHA\GE_WAR\main_pytorch.py
+                python: CPython 3.13.5
+                root: C:\Users\user\Desktop\GE_War\CHES_PANHA\GE_WAR
+                startedAt: "2025-07-27T12:31:02.115713Z"
+                writerId: 9cx43cyua9sqg0uh1eomhwi9e3cjmepf
+        m: []
+        python_version: 3.13.5
+        t:
+            "1":
+                - 1
+                - 5
+                - 41
+                - 53
+            "2":
+                - 1
+                - 5
+                - 41
+                - 53
+            "3":
+                - 2
+                - 14
+            "4": 3.13.5
+            "5": 0.21.0
+            "8":
+                - 3
+            "12": 0.21.0
+            "13": windows-amd64
+activation:
+    value: selu
+attack_eval_frequency:
+    value: 5
+batch_size:
+    value: 64
+conv_layers:
+    value: 2
+dataset:
+    value: CHES_2025
+dropout_rate:
+    value: 0.1659671608310503
+early_stopping_patience:
+    value: 10
+epochs:
+    value: 100
+filters:
+    value: 16
+k_folds:
+    value: 2
+kernels:
+    value: 36
+layers:
+    value: 3
+leakage:
+    value: ID
+lr:
+    value: 0.0005
+max_shift:
+    value: 10
+min_epochs:
+    value: 30
+model_type:
+    value: cnn
+neurons:
+    value: 128
+noise_level:
+    value: 0.04286598024507582
+num_poi:
+    value: 100
+num_traces_attack:
+    value: 100000
+optimizer:
+    value: Adam
+padding:
+    value: 1
+poi_end:
+    value: 7000
+poi_start:
+    value: 0
+pooling_sizes:
+    value: 4
+pooling_types:
+    value: max_pool
