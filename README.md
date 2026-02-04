@@ -28,9 +28,9 @@ This submission achieved the best performance on the **Private1** test set among
 
 ### Submission #12 Performance
 
-- ✓ **Guessing Entropy (GE)**: 0.0
-- ✓ **Number of Traces to GE (NTGE)**: 99,774
-- ★ **Overall Score**: 122,516.50
+- **Guessing Entropy (GE)**: 0.0
+- **Number of Traces to GE (NTGE)**: 99,774
+- **Overall Score**: 122,516.50
 
 ### Detailed Performance Across Test Sets
 
