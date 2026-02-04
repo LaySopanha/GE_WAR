@@ -14,7 +14,7 @@ This repository contains **Submission #12** for the **CHES 2025 Side-Channel Ana
 
 This submission achieved the best performance on the **Private1** test set among all team submissions.
 
-## ► Team Members
+## Team Members
 
 - **Lay Sopanha** - panhalay69420@gmail.com
 - **Pav Limseng** - e20211548@dtc1.itc.edu.kh
