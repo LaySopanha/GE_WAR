@@ -8,7 +8,7 @@
 ![Status](https://img.shields.io/badge/GE-0.0-success)
 ![DGIST](https://img.shields.io/badge/Research-DGIST-purple)
 
-## ► Overview
+## Overview
 
 This repository contains **Submission #12** for the **CHES 2025 Side-Channel Analysis Challenge** by team **Ott3rly Av3rag3**. The project implements a deep learning-based approach using PyTorch for side-channel attack analysis on AES implementations.
 
@@ -20,11 +20,11 @@ This submission achieved the best performance on the **Private1** test set among
 - **Pav Limseng** - e20211548@dtc1.itc.edu.kh
 - **Kao Vichet** - kaovichet11@gmail.com
 
-## ► Advisor
+## Advisor
 
 - **Cho Seunghyun** - seunghyuncho@dgist.ac.kr
 
-## ► Results
+## Results
 
 ### Submission #12 Performance
 
@@ -58,7 +58,7 @@ This submission achieved the best performance on the **Private1** test set among
 
 ★ **Key Achievement**: Submission #12 demonstrated exceptional performance on the Private1 test set (99,993 traces), significantly outperforming all other submissions which required 200,000+ traces.
 
-## ► Project Structure
+## Project Structure
 
 ```
 .
@@ -75,7 +75,7 @@ This submission achieved the best performance on the **Private1** test set among
     └── utils.py               # Utility functions
 ```
 
-## ► Installation
+## Installation
 
 ### Prerequisites
 
@@ -102,7 +102,7 @@ pip install -r requirements.txt
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 ```
 
-## ► Usage
+## Usage
 
 Run the analysis script to perform side-channel attack evaluation:
 
@@ -111,11 +111,11 @@ python analyze_pytorch.py
 ```
 
 The script will:
-- ► Load the pre-trained model from `ge0_model_run_12.pth`
-- ► Evaluate the model on the CHES 2025 dataset
-- ► Calculate guessing entropy and key recovery performance
+- Load the pre-trained model from `ge0_model_run_12.pth`
+- Evaluate the model on the CHES 2025 dataset
+- Calculate guessing entropy and key recovery performance
 
-## ► Model Architecture
+## Model Architecture
 
 The implementation supports multiple neural network architectures:
 - ▪ **MLP**: Multi-Layer Perceptron with configurable depth and activation functions
@@ -126,7 +126,7 @@ The implementation supports multiple neural network architectures:
 - ▪ **Identity (ID)**: Direct S-box output (256 classes)
 - ▪ **Hamming Weight (HW)**: Hamming weight of S-box output (9 classes)
 
-## ► Key Features
+## Key Features
 
 - ✓ Reproducible results with fixed random seeds
 - ✓ Support for both CPU and GPU execution
@@ -134,7 +134,7 @@ The implementation supports multiple neural network architectures:
 - ✓ Efficient data loading with custom PyTorch datasets
 - ✓ Comprehensive evaluation metrics
 
-## ► Dependencies
+## Dependencies
 
 ```
 h5py==3.13.0
@@ -148,16 +148,16 @@ torch (see PyTorch installation)
 torchvision (see PyTorch installation)
 ```
 
-## ► References
+## References
 
 - **CHES 2025 Challenge**: [https://pace-tl.gitbook.io/ches-challenge-2025](https://pace-tl.gitbook.io/ches-challenge-2025)
 - **PACL Lab**: [https://sites.google.com/view/pacl/](https://sites.google.com/view/pacl/)
 
-## ► License
+## License
 
 This project is submitted as part of the CHES 2025 Challenge. Please refer to the challenge guidelines for usage and distribution terms.
 
-## ► Acknowledgments
+## Acknowledgments
 
 This work was developed as part of the **Summer Research Internship at DGIST** (Daegu Gyeongbuk Institute of Science and Technology) and submitted to the CHES 2025 Side-Channel Analysis Challenge organized by the PACL (Power Analysis and Cryptography Lab).
 
