@@ -1,0 +1,172 @@
+import torch, time, os
+from torch import nn, optim
+from tqdm import tqdm
+from src.utils import evaluate
+
+def training_loop(config, model, train_loader, val_loader, device, run):
+    if config['optimizer'] == "Adam": optimizer = optim.AdamW(model.parameters(), lr=config['lr'])
+    else: optimizer = optim.RMSprop(model.parameters(), lr=config['lr'])
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config['epochs'], eta_min=0)
+    criterion = nn.CrossEntropyLoss()
+    best_val_loss = float('inf')
+    epochs_no_improve = 0
+    # patience = config.get('early_stopping_patience', 10)  # Default patience of 10
+
+    for epoch in range(config['epochs']):
+        model.train()
+        train_loss = 0.0
+        for i, (traces, labels) in enumerate(tqdm(train_loader, desc=f"Epoch {epoch+1}/{config['epochs']}", leave=False)):
+            inputs, labels = traces.to(device), labels.squeeze(1).to(device)
+            optimizer.zero_grad(set_to_none=True)
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item() * inputs.size(0)
+
+        avg_train_loss = train_loss / len(train_loader.dataset)
+
+        model.eval()
+        val_loss, val_corrects = 0.0, 0
+        if val_loader:
+            with torch.no_grad():
+                for traces, labels in tqdm(val_loader, desc=f"Validating...", leave=False):
+                    inputs, labels = traces.to(device), labels.squeeze(1).to(device)
+                    outputs = model(inputs)
+                    _, preds = torch.max(outputs, 1)
+                    loss = criterion(outputs, labels)
+                    val_loss += loss.item() * inputs.size(0)
+                    val_corrects += torch.sum(preds == labels.data)
+            
+            avg_val_loss = val_loss / len(val_loader.dataset)
+            avg_val_acc = val_corrects.double() / len(val_loader.dataset)
+            print(f"Epoch {epoch+1}: Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, Val Acc: {avg_val_acc:.4f}")
+
+            if run:
+                run.log({
+                    "epoch": epoch + 1,
+                    "train_loss": avg_train_loss,
+                    "val_loss": avg_val_loss,
+                    "val_acc": avg_val_acc,
+                    "lr": scheduler.get_last_lr()[0]
+                })
+            
+            # if avg_val_loss < best_val_loss:
+            #     best_val_loss = avg_val_loss
+            #     torch.save(model.state_dict(), "best_model.pth")
+            #     epochs_no_improve = 0
+            # else:
+            #     epochs_no_improve += 1
+        
+        scheduler.step()
+
+        # if epochs_no_improve >= patience:
+        #     print(f"Early stopping triggered after {epoch + 1} epochs.")
+        #     break
+    try:
+        torch.save(model.state_dict(), "best_model.pth")
+        print("Final model saved successfully")
+    except Exception as e:
+        print(f"Error saving final model: {e}")
+        print(f"Error details: {type(e).__name__}: {str(e)}")
+    return model
+
+
+def attack_driven_training_loop(config, model, train_loader, device, run, X_attack, plt_attack, correct_key, leakage_fn, fold=0):
+    if config['optimizer'] == "Adam": optimizer = optim.AdamW(model.parameters(), lr=config['lr'])
+    else: optimizer = optim.RMSprop(model.parameters(), lr=config['lr'])
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config['epochs'], eta_min=0)
+    criterion = nn.CrossEntropyLoss()
+    
+    best_final_ge = float('inf')
+    best_ntge = float('inf')
+    epochs_no_improve = 0
+    patience = config.get('early_stopping_patience', 10)
+    min_epochs = config.get('min_epochs', 30)  
+    attack_eval_frequency = config.get('attack_eval_frequency', 5)  
+    best_model_path = f"best_model_fold_{fold}.pth"
+    best_model_state = None
+
+    for epoch in range(config['epochs']):
+        model.train()
+        train_loss = 0.0
+        for i, (traces, labels) in enumerate(tqdm(train_loader, desc=f"Epoch {epoch+1}/{config['epochs']}", leave=False)):
+            inputs, labels = traces.to(device), labels.squeeze(1).to(device)
+            optimizer.zero_grad(set_to_none=True)
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item() * inputs.size(0)
+
+        avg_train_loss = train_loss / len(train_loader.dataset)
+        
+        # Skip attack evaluation on some epochs to speed up training
+        if epoch % attack_eval_frequency != 0 and epoch != config['epochs'] - 1:
+            print(f"Epoch {epoch+1}: Train Loss: {avg_train_loss:.4f} (Skipping attack evaluation)")
+            if run:
+                run.log({
+                    "epoch": epoch + 1,
+                    "train_loss": avg_train_loss,
+                    "lr": scheduler.get_last_lr()[0]
+                })
+            scheduler.step()
+            continue
+
+        # --- Attack-Driven Evaluation ---
+        GE, NTGE, final_ge = evaluate(device, model, X_attack, plt_attack, correct_key,
+                                      leakage_fn=leakage_fn, nb_attacks=100,
+                                      total_nb_traces_attacks=config["num_traces_attack"],
+                                      nb_traces_attacks=config["num_traces_attack"])
+        
+        print(f"Epoch {epoch+1}: Train Loss: {avg_train_loss:.4f}, Final GE: {final_ge:.2f}, NTGE: {NTGE}")
+
+        if run:
+            run.log({
+                "epoch": epoch + 1,
+                "train_loss": avg_train_loss,
+                "final_GE": final_ge,
+                "NTGE": NTGE,
+                "lr": scheduler.get_last_lr()[0]
+            })
+        if final_ge < best_final_ge or (final_ge == best_final_ge and NTGE < best_ntge):
+            best_final_ge = final_ge
+            best_ntge = NTGE
+            best_model_state = model.state_dict().copy() 
+            
+            try:
+                torch.save(model.state_dict(), best_model_path)
+                print(f"Model saved successfully: {best_model_path}")
+            except Exception as e:
+                print(f"PyTorch save failed: {e}")
+                print(f"Error details: {type(e).__name__}: {str(e)}")
+                import pickle
+                fallback_path = best_model_path.replace('.pth', '_pickle.pkl')
+                try:
+                    with open(fallback_path, 'wb') as f:
+                        pickle.dump(model.state_dict(), f)
+                    print(f"Pickle fallback successful: {fallback_path}")
+                except Exception as e3:
+                    print(f"Even pickle failed: {e3}")
+            
+            print(f"New best model saved with Final GE: {best_final_ge:.2f} and NTGE: {best_ntge}")
+            epochs_no_improve = 0
+            
+            # Don't stop early when GE=0 - continue to improve NTGE
+            # Only stop if we haven't improved for patience epochs
+        else:
+            epochs_no_improve += 1
+
+        # Early stopping based on patience, not just achieving GE=0
+        if epoch >= min_epochs and epochs_no_improve >= patience:
+            print(f"Early stopping triggered after {epoch+1} epochs (no improvement for {patience} epochs)")
+            break
+            
+        scheduler.step()
+    
+    # Load best model before returning
+    if best_model_state is not None:
+        model.load_state_dict(best_model_state)
+        print(f"Loaded best model with Final GE: {best_final_ge:.2f} and NTGE: {best_ntge}")
+    
+    return model
